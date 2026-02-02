@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evolution API Manager</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; }
+        h2 { font-size: 1.25rem; margin-top: 0; }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-primary);
+            box-sizing: border-box;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+        button.danger { background-color: var(--danger); }
+        button.success { background-color: var(--success); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .instance-card {
+            border-left: 4px solid var(--text-secondary);
+        }
+
+        .instance-card.connected { border-left-color: var(--success); }
+        .instance-card.disconnected { border-left-color: var(--danger); }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: var(--bg-color);
+        }
+
+        .status-connected { color: var(--success); border: 1px solid var(--success); }
+        .status-disconnected { color: var(--danger); border: 1px solid var(--danger); }
+
+        pre {
+            background-color: #000;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            overflow-x: auto;
+            font-size: 0.875rem;
+            color: #a5b4fc;
+        }
+
+        .qr-container {
+            text-align: center;
+            margin-top: 1rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+        }
+        
+        .qr-container img {
+            max-width: 250px;
+        }
+
+        .hidden { display: none; }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            animation: slideIn 0.3s ease-out;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Evolution API Manager</h1>
+            <div id="connection-status" class="status-badge status-disconnected">API Offline</div>
+            <button onclick="fetchInstances()" style="margin-left: 1rem; padding: 0.5rem 1rem; font-size: 0.8rem;">🔄 Atualizar Lista</button>
+        </header>
+
+        <!-- Configuração -->
+        <div class="card">
+            <h2>🔑 Configuração de Acesso</h2>
+            <div class="form-group">
+                <label>Global API Key</label>
+                <div style="display: flex; gap: 1rem;">
+                    <div style="position: relative; flex-grow: 1;">
+                        <input type="password" id="apiKey" value="evolution-api-secret-key-123456" placeholder="Insira a API Key" style="padding-right: 40px;">
+                        <button type="button" onclick="togglePassword()" style="position: absolute; right: 5px; top: 5px; bottom: 5px; background: none; border: none; padding: 0 10px; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem;" title="Mostrar/Ocultar Senha">👁️</button>
+                    </div>
+                    <button onclick="saveConfig()">Salvar & Conectar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Criar Nova Instância -->
+        <div class="card">
+            <h2>📱 Nova Conexão</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label>Nome da Instância (ex: atendimento)</label>
+                    <input type="text" id="newInstanceName" placeholder="Nome da instância">
+                </div>
+                <div class="form-group">
+                    <label>Token (Opcional - gerado auto se vazio)</label>
+                    <input type="text" id="newInstanceToken" placeholder="Token de segurança">
+                </div>
+                <div class="form-group" style="display: flex; align-items: flex-end;">
+                    <button onclick="createInstance()" class="success" style="width: 100%;">Criar & Gerar QR Code</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Instâncias -->
+        <div id="instancesList" class="grid">
+            <!-- Instâncias serão carregadas aqui -->
+        </div>
+    </div>
+
+    <!-- Modal QR Code -->
+    <div id="qrModal" class="card" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; display: none; text-align: center; border: 2px solid var(--primary);">
+        <h2>Escaneie o QR Code</h2>
+        <p>Abra o WhatsApp > Aparelhos Conectados > Conectar Aparelho</p>
+        <div id="qrDisplay" class="qr-container"></div>
+        <br><br>
+        <button onclick="closeQrModal()">Fechar</button>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080';
+        let GLOBAL_API_KEY = localStorage.getItem('evolution_api_key') || 'evolution-api-secret-key-123456';
+
+        document.getElementById('apiKey').value = GLOBAL_API_KEY;
+
+        function togglePassword() {
+            const input = document.getElementById('apiKey');
+            const btn = input.nextElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerText = '🔒';
+            } else {
+                input.type = 'password';
+                btn.innerText = '👁️';
+            }
+        }
+
+        async function saveConfig() {
+            GLOBAL_API_KEY = document.getElementById('apiKey').value;
+            localStorage.setItem('evolution_api_key', GLOBAL_API_KEY);
+            await fetchInstances();
+            showToast('Configuração salva!');
+        }
+
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            try {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'apikey': GLOBAL_API_KEY
+                };
+                
+                const options = { method, headers };
+                if (body) options.body = JSON.stringify(body);
+
+                const res = await fetch(`${API_URL}${endpoint}`, options);
+                
+                if (res.status === 403 || res.status === 401) {
+                    showToast('Erro de autenticação! Verifique a API Key.', 'error');
+                    return null;
+                }
+                
+                return await res.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                document.getElementById('connection-status').className = 'status-badge status-disconnected';
+                document.getElementById('connection-status').innerText = 'API Offline';
+                return null;
+            }
+        }
+
+        async function fetchInstances() {
+            const data = await apiCall('/instance/fetchInstances');
+            const list = document.getElementById('instancesList');
+            list.innerHTML = '';
+
+            if (!data) return;
+
+            document.getElementById('connection-status').className = 'status-badge status-connected';
+            document.getElementById('connection-status').innerText = 'API Online';
+
+            if (data.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-secondary);">Nenhuma instância criada.</p>';
+                return;
+            }
+
+            data.forEach(instance => {
+                const isConnected = instance.connectionStatus === 'open';
+                const card = document.createElement('div');
+                card.className = `card instance-card ${isConnected ? 'connected' : 'disconnected'}`;
+                
+                let ownerInfo = '';
+                if (isConnected && instance.ownerJid) {
+                    const number = instance.ownerJid.split('@')[0];
+                    ownerInfo = `
+                        <div style="background: rgba(34, 197, 94, 0.1); padding: 0.5rem; border-radius: 0.375rem; margin-top: 0.5rem; border: 1px solid var(--success);">
+                            <div style="font-weight: bold; color: var(--success);">✅ Conectado como:</div>
+                            <div>Nome: ${instance.profileName || 'Sem nome'}</div>
+                            <div>Número: ${number}</div>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <h3>${instance.name}</h3>
+                        <span class="status-badge ${isConnected ? 'status-connected' : 'status-disconnected'}">
+                            ${isConnected ? 'CONECTADO' : 'DESCONECTADO'}
+                        </span>
+                    </div>
+                    
+                    ${ownerInfo}
+
+                    <div style="margin: 1rem 0;">
+                        <label>Token de Acesso:</label>
+                        <code style="background: rgba(0,0,0,0.2); padding: 4px; border-radius: 4px; display: block; overflow-x: auto;">
+                            ${instance.token}
+                        </code>
+                    </div>
+
+                    <div style="margin: 1rem 0;">
+                        <label>Webhook URL (Exemplo):</label>
+                        <code style="background: rgba(0,0,0,0.2); padding: 4px; border-radius: 4px; display: block; overflow-x: auto;">
+                            ${API_URL}/webhook/${instance.name}
+                        </code>
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button onclick="connectInstance('${instance.name}')">📷 Ler QR Code</button>
+                        <button class="danger" onclick="deleteInstance('${instance.name}')">🗑️ Deletar</button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        async function createInstance() {
+            const name = document.getElementById('newInstanceName').value;
+            const token = document.getElementById('newInstanceToken').value;
+
+            if (!name) return showToast('Nome da instância é obrigatório', 'error');
+
+            showToast('Criando instância...');
+            
+            const res = await apiCall('/instance/create', 'POST', {
+                instanceName: name,
+                token: token || undefined,
+                qrcode: true,
+                integration: 'WHATSAPP-BAILEYS'
+            });
+
+            if (res && res.instance) {
+                showToast('Instância criada com sucesso!');
+                document.getElementById('newInstanceName').value = '';
+                await fetchInstances();
+                
+                // Se retornou QR Code, mostrar
+                if (res.qrcode && res.qrcode.base64) {
+                    showQrModal(res.qrcode.base64);
+                }
+            } else {
+                const errorMsg = res?.response?.message || res?.message || 'Erro desconhecido ao criar instância';
+                showToast(`Erro: ${errorMsg}`, 'error');
+            }
+        }
+
+        async function connectInstance(name) {
+            showToast('Buscando QR Code...');
+            const res = await apiCall(`/instance/connect/${name}`);
+            
+            const base64 = res?.base64 || res?.qrcode?.base64;
+            const pairingCode = res?.code || res?.pairingCode;
+
+            if (base64) {
+                showQrModal(base64);
+            } else if (pairingCode) {
+                showToast(`Código de pareamento: ${pairingCode}`);
+            } else {
+                showToast('Não foi possível obter o QR Code. Tente novamente.', 'error');
+            }
+        }
+
+        async function deleteInstance(name) {
+            if (!confirm(`Tem certeza que deseja deletar ${name}?`)) return;
+            
+            await apiCall(`/instance/delete/${name}`, 'DELETE');
+            showToast('Instância deletada');
+            await fetchInstances();
+        }
+
+        function showQrModal(base64) {
+            const modal = document.getElementById('qrModal');
+            const display = document.getElementById('qrDisplay');
+            display.innerHTML = `<img src="${base64}" alt="QR Code" />`;
+            modal.style.display = 'block';
+        }
+
+        function closeQrModal() {
+            document.getElementById('qrModal').style.display = 'none';
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderColor = type === 'error' ? 'var(--danger)' : 'var(--success)';
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Inicializar
+        fetchInstances();
+        
+        // Auto-refresh a cada 5 segundos
+        setInterval(fetchInstances, 5000);
+    </script>
+</body>
+</html>
