@@ -193,6 +193,10 @@ router.get('/assets/*', (req, res) => {
 router
   .use((req, res, next) => telemetry.collectTelemetry(req, res, next))
 
+  .get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'public', 'images', 'evolution-logo.png'));
+  })
+
   .get('/', async (req, res) => {
     res.status(HttpStatus.OK).json({
       status: HttpStatus.OK,
