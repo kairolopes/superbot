@@ -35,7 +35,8 @@ export class OpenaiService extends BaseChatbotService<OpenaiBot, OpenaiSetting> 
    * Initialize the OpenAI client with the provided API key
    */
   protected initClient(apiKey: string) {
-    this.client = new OpenAI({ apiKey });
+    const baseURL = this.configService.get<OpenaiConfig>('OPENAI').BASE_URL;
+    this.client = new OpenAI({ apiKey, baseURL });
     return this.client;
   }
 

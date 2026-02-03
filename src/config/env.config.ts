@@ -329,7 +329,7 @@ export type Chatwoot = {
     PLACEHOLDER_MEDIA_MESSAGE: boolean;
   };
 };
-export type Openai = { ENABLED: boolean; API_KEY_GLOBAL?: string };
+export type Openai = { ENABLED: boolean; API_KEY_GLOBAL?: string; BASE_URL?: string };
 export type Dify = { ENABLED: boolean };
 export type N8n = { ENABLED: boolean };
 export type Evoai = { ENABLED: boolean };
@@ -661,21 +661,21 @@ export class ConfigService {
         SASL:
           process.env?.KAFKA_SASL_ENABLED === 'true'
             ? {
-                ENABLED: true,
-                MECHANISM: process.env?.KAFKA_SASL_MECHANISM || 'plain',
-                USERNAME: process.env?.KAFKA_SASL_USERNAME || '',
-                PASSWORD: process.env?.KAFKA_SASL_PASSWORD || '',
-              }
+              ENABLED: true,
+              MECHANISM: process.env?.KAFKA_SASL_MECHANISM || 'plain',
+              USERNAME: process.env?.KAFKA_SASL_USERNAME || '',
+              PASSWORD: process.env?.KAFKA_SASL_PASSWORD || '',
+            }
             : undefined,
         SSL:
           process.env?.KAFKA_SSL_ENABLED === 'true'
             ? {
-                ENABLED: true,
-                REJECT_UNAUTHORIZED: process.env?.KAFKA_SSL_REJECT_UNAUTHORIZED !== 'false',
-                CA: process.env?.KAFKA_SSL_CA,
-                KEY: process.env?.KAFKA_SSL_KEY,
-                CERT: process.env?.KAFKA_SSL_CERT,
-              }
+              ENABLED: true,
+              REJECT_UNAUTHORIZED: process.env?.KAFKA_SSL_REJECT_UNAUTHORIZED !== 'false',
+              CA: process.env?.KAFKA_SSL_CA,
+              KEY: process.env?.KAFKA_SSL_KEY,
+              CERT: process.env?.KAFKA_SSL_CERT,
+            }
             : undefined,
       },
       WEBSOCKET: {
