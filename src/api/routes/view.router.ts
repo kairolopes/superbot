@@ -9,7 +9,7 @@ export class ViewsRouter extends RouterBroker {
     super();
     this.router = Router();
 
-    const basePath = path.join(process.cwd(), 'manager', 'dist');
+    const basePath = path.join(process.cwd(), 'public');
     const indexPath = path.join(basePath, 'index.html');
 
     this.router.use(express.static(basePath));
