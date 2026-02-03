@@ -319,9 +319,13 @@
         }
 
         async function fetchInstances() {
+            // Check if user is typing in any input
+            const activeElement = document.activeElement;
+            const isTyping = activeElement && activeElement.tagName === 'INPUT';
+            if (isTyping) return;
+
             const data = await apiCall('/instance/fetchInstances');
             const list = document.getElementById('instancesList');
-            list.innerHTML = '';
 
             if (!data) return;
 
@@ -333,9 +337,41 @@
                 return;
             }
 
+            // Remove instances that no longer exist
+            const currentNames = data.map(i => i.name);
+            Array.from(list.children).forEach(child => {
+                const id = child.id.replace('instance-card-', '');
+                if (id && !currentNames.includes(id)) {
+                    child.remove();
+                }
+            });
+
             data.forEach(instance => {
                 const isConnected = instance.connectionStatus === 'open';
-                const card = document.createElement('div');
+                const cardId = `instance-card-${instance.name}`;
+                let card = document.getElementById(cardId);
+
+                // If card exists, only update status
+                if (card) {
+                    // Update status text and class
+                    const statusBadge = card.querySelector('.status-main-badge');
+                    if (statusBadge) {
+                        statusBadge.className = `status-badge status-main-badge ${isConnected ? 'status-connected' : 'status-disconnected'}`;
+                        statusBadge.innerText = isConnected ? 'CONECTADO' : 'DESCONECTADO';
+                    }
+
+                    // Update connection border
+                    card.className = `card instance-card ${isConnected ? 'connected' : 'disconnected'}`;
+
+                    // Update owner info if changed (simplified: only update if structure matches)
+                    // For simplicity, we won't rebuild the owner info block dynamically to avoid complex diffing, 
+                    // unless connection status changed drastically.
+                    return;
+                }
+
+                // Create new card if it doesn't exist
+                card = document.createElement('div');
+                card.id = cardId;
                 card.className = `card instance-card ${isConnected ? 'connected' : 'disconnected'}`;
 
                 let ownerInfo = '';
@@ -353,7 +389,7 @@
                 card.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: start;">
                         <h3>${instance.name}</h3>
-                        <span class="status-badge ${isConnected ? 'status-connected' : 'status-disconnected'}">
+                        <span class="status-badge status-main-badge ${isConnected ? 'status-connected' : 'status-disconnected'}">
                             ${isConnected ? 'CONECTADO' : 'DESCONECTADO'}
                         </span>
                     </div>
@@ -431,6 +467,7 @@
             if (base64) {
                 showQrModal(base64);
             } else if (pairingCode) {
+                web
                 showToast(`Código de pareamento: ${pairingCode}`);
             } else {
                 showToast('Não foi possível obter o QR Code. Tente novamente.', 'error');
@@ -524,7 +561,8 @@
         fetchInstances();
 
         // Auto-refresh a cada 5 segundos
-        setInterval(fetchInstances, 5000);
+        // Auto-refresh removido para evitar limpar o input enquanto digita
+        // setInterval(fetchInstances, 5000);
     </script>
 </body>
 
