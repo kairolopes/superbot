@@ -30,14 +30,25 @@ export class WebhookController extends EventController implements EventControlle
       }
     }
 
+    let instanceId: string;
     const instance = this.monitor.waInstances[instanceName];
-    if (!instance) {
-      throw new BadRequestException('Instance not found or not connected');
+
+    if (instance) {
+      instanceId = instance.instanceId;
+    } else {
+      const instanceDb = await this.prisma.instance.findFirst({
+        where: { name: instanceName },
+      });
+
+      if (!instanceDb) {
+        throw new BadRequestException('Instance not found or not connected');
+      }
+      instanceId = instanceDb.id;
     }
 
     return this.prisma.webhook.upsert({
       where: {
-        instanceId: instance.instanceId,
+        instanceId,
       },
       update: {
         enabled: data.webhook?.enabled,
@@ -50,7 +61,7 @@ export class WebhookController extends EventController implements EventControlle
       create: {
         enabled: data.webhook?.enabled,
         events: data.webhook?.events,
-        instanceId: this.monitor.waInstances[instanceName].instanceId,
+        instanceId,
         url: data.webhook?.url,
         headers: data.webhook?.headers,
         webhookBase64: data.webhook.base64,
