@@ -4,7 +4,7 @@ import { WAMonitoringService } from '@api/services/monitor.service';
 import { wa } from '@api/types/wa.types';
 import { configService, Log, Webhook } from '@config/env.config';
 import { Logger } from '@config/logger.config';
-// import { BadRequestException } from '@exceptions';
+import { BadRequestException } from '@exceptions';
 import axios, { AxiosInstance } from 'axios';
 import * as jwt from 'jsonwebtoken';
 
@@ -25,14 +25,19 @@ export class WebhookController extends EventController implements EventControlle
     if (!data.webhook?.enabled) {
       data.webhook.events = [];
     } else {
-      if (0 === data.webhook.events.length) {
+      if (!data.webhook.events || 0 === data.webhook.events.length) {
         data.webhook.events = EventController.events;
       }
     }
 
+    const instance = this.monitor.waInstances[instanceName];
+    if (!instance) {
+      throw new BadRequestException('Instance not found or not connected');
+    }
+
     return this.prisma.webhook.upsert({
       where: {
-        instanceId: this.monitor.waInstances[instanceName].instanceId,
+        instanceId: instance.instanceId,
       },
       update: {
         enabled: data.webhook?.enabled,
