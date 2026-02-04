@@ -40,10 +40,7 @@ export class WebhookController extends EventController implements EventControlle
         where: { name: instanceName },
       });
 
-      this.logger.warn(`[DEBUG] Webhook Set - Instance: ${instanceName}, Found in DB: ${!!instanceDb}`);
-
       if (!instanceDb) {
-        this.logger.error(`[DEBUG] Instance "${instanceName}" not found in database. Query: { name: "${instanceName}" }`);
         throw new BadRequestException(`Instance "${instanceName}" not found in database (Offline Mode)`);
       }
       instanceId = instanceDb.id;
