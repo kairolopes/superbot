@@ -41,7 +41,7 @@ export class WebhookController extends EventController implements EventControlle
       });
 
       if (!instanceDb) {
-        throw new BadRequestException('Instance not found or not connected');
+        throw new BadRequestException(`Instance "${instanceName}" not found in database (Offline Mode)`);
       }
       instanceId = instanceDb.id;
     }
