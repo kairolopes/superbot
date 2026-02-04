@@ -40,10 +40,7 @@ export class WebhookController extends EventController implements EventControlle
         where: { name: instanceName },
       });
 
-      this.logger.warn(`[DEBUG] Webhook Set - Instance: ${instanceName}, Found in DB: ${!!instanceDb}`);
-
       if (!instanceDb) {
-        this.logger.error(`[DEBUG] Instance "${instanceName}" not found in database. Query: { name: "${instanceName}" }`);
         throw new BadRequestException(`Instance "${instanceName}" not found in database (Offline Mode)`);
       }
       instanceId = instanceDb.id;
@@ -73,11 +70,9 @@ export class WebhookController extends EventController implements EventControlle
             instanceId,
           },
         });
-        this.logger.warn(`[DEBUG] Webhook upsert success for ${instanceName}`);
         return result;
       } catch (error) {
-        this.logger.error(`[DEBUG] Webhook upsert failed for ${instanceName}: ${error.message}`);
-        this.logger.error(`[DEBUG] Data: ${JSON.stringify(data.webhook)}`);
+        this.logger.error(`Webhook upsert failed for ${instanceName}: ${error.message}`);
         throw new BadRequestException(`Failed to save webhook: ${error.message}`);
       }
   }
