@@ -52,6 +52,11 @@ export class MessageRouter extends RouterBroker {
         return res.status(HttpStatus.CREATED).json(response);
       })
       .post(this.routerPath('sendText'), ...guards, async (req, res) => {
+        // Compatibility fix for frontends sending 'message' instead of 'text'
+        if (req.body && !req.body.text && req.body.message) {
+          req.body.text = req.body.message;
+        }
+
         const response = await this.dataValidate<SendTextDto>({
           request: req,
           schema: textMessageSchema,

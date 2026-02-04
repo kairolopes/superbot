@@ -18,6 +18,11 @@ export class WebhookController extends EventController implements EventControlle
   }
 
   override async set(instanceName: string, data: EventDto): Promise<wa.LocalWebHook> {
+    // Sanitize URL (remove backticks and whitespace)
+    if (data.webhook?.url) {
+      data.webhook.url = data.webhook.url.replace(/[`'"]/g, '').trim();
+    }
+
     // if (!/^(https?:\/\/)/.test(data.webhook.url)) {
     //   throw new BadRequestException('Invalid "url" property');
     // }
