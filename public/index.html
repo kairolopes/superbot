@@ -501,11 +501,15 @@
         }
 
         async function saveWebhook(instanceName) {
-            const url = document.getElementById(`webhook-url-${instanceName}`).value;
+            let url = document.getElementById(`webhook-url-${instanceName}`).value;
             const enabled = document.getElementById(`webhook-enabled-${instanceName}`).checked;
 
-            if (!url && enabled) {
-                return showToast('Insira uma URL para habilitar o Webhook', 'error');
+            if (!url) {
+                if (enabled) {
+                    return showToast('Insira uma URL para habilitar o Webhook', 'error');
+                }
+                // Fix: Schema requires non-empty URL even if disabled
+                url = "http://disabled.local";
             }
 
             showToast('Salvando webhook...');
