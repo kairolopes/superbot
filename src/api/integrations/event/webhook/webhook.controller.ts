@@ -101,6 +101,11 @@ export class WebhookController extends EventController implements EventControlle
 
     const instance = (await this.get(instanceName)) as wa.LocalWebHook;
 
+    // Runtime sanitization for existing dirty records
+    if (instance?.url) {
+      instance.url = instance.url.replace(/[`'"]/g, '').trim();
+    }
+
     const webhookConfig = configService.get<Webhook>('WEBHOOK');
     const webhookLocal = instance?.events;
     const webhookHeaders = { ...((instance?.headers as Record<string, string>) || {}) };
