@@ -136,7 +136,11 @@ export class ChannelStartupService {
     });
 
     this.localWebhook.enabled = data?.enabled;
+    this.localWebhook.url = data?.url;
+    this.localWebhook.headers = data?.headers;
+    this.localWebhook.webhookByEvents = data?.webhookByEvents;
     this.localWebhook.webhookBase64 = data?.webhookBase64;
+    this.localWebhook.events = data?.events;
   }
 
   public async loadSettings() {
