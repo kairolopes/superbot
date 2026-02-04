@@ -43,6 +43,10 @@ export class WAMonitoringService {
   private readonly providerSession: ProviderSession;
 
   public delInstanceTime(instance: string) {
+    const manual = this.configService.get<boolean>('MANUAL_DELETION_ONLY');
+    if (manual) {
+      return;
+    }
     const time = this.configService.get<DelInstance>('DEL_INSTANCE');
     if (typeof time === 'number' && time > 0) {
       // Clear previous timeout if exists
@@ -209,7 +213,9 @@ export class WAMonitoringService {
     await this.prismaRepository.messageUpdate.deleteMany({ where: { instanceId: instance.id } });
     await this.prismaRepository.message.deleteMany({ where: { instanceId: instance.id } });
 
-    await this.prismaRepository.webhook.deleteMany({ where: { instanceId: instance.id } });
+    if (!this.configService.get<boolean>('PRESERVE_WEBHOOKS')) {
+      await this.prismaRepository.webhook.deleteMany({ where: { instanceId: instance.id } });
+    }
     await this.prismaRepository.chatwoot.deleteMany({ where: { instanceId: instance.id } });
     await this.prismaRepository.proxy.deleteMany({ where: { instanceId: instance.id } });
     await this.prismaRepository.rabbitmq.deleteMany({ where: { instanceId: instance.id } });
@@ -221,7 +227,9 @@ export class WAMonitoringService {
     await this.prismaRepository.setting.deleteMany({ where: { instanceId: instance.id } });
     await this.prismaRepository.label.deleteMany({ where: { instanceId: instance.id } });
 
-    await this.prismaRepository.instance.delete({ where: { name: instanceName } });
+    if (!this.configService.get<boolean>('PRESERVE_WEBHOOKS')) {
+      await this.prismaRepository.instance.delete({ where: { name: instanceName } });
+    }
   }
 
   public async loadInstance() {
@@ -390,7 +398,11 @@ export class WAMonitoringService {
   }
 
   private removeInstance() {
-    this.eventEmitter.on('remove.instance', async (instanceName: string) => {
+    this.eventEmitter.on('remove.instance', async (instanceName: string, source?: string) => {
+      const manual = this.configService.get<boolean>('MANUAL_DELETION_ONLY');
+      if (manual && source !== 'manual') {
+        return;
+      }
       try {
         await this.waInstances[instanceName]?.sendDataWebhook(Events.REMOVE_INSTANCE, null);
 

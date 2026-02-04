@@ -405,6 +405,8 @@ export interface Env {
   WA_BUSINESS: WaBusiness;
   LOG: Log;
   DEL_INSTANCE: DelInstance;
+  MANUAL_DELETION_ONLY: boolean;
+  PRESERVE_WEBHOOKS: boolean;
   DEL_TEMP_INSTANCES: boolean;
   LANGUAGE: Language;
   WEBHOOK: Webhook;
@@ -740,6 +742,8 @@ export class ConfigService {
       DEL_INSTANCE: isBooleanString(process.env?.DEL_INSTANCE)
         ? process.env.DEL_INSTANCE === 'true'
         : Number.parseInt(process.env.DEL_INSTANCE) || false,
+      MANUAL_DELETION_ONLY: process.env?.MANUAL_DELETION_ONLY === 'true',
+      PRESERVE_WEBHOOKS: process.env?.PRESERVE_WEBHOOKS !== 'false',
       DEL_TEMP_INSTANCES: isBooleanString(process.env?.DEL_TEMP_INSTANCES)
         ? process.env.DEL_TEMP_INSTANCES === 'true'
         : true,
