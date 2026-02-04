@@ -538,7 +538,11 @@
 
             const res = await apiCall(`/webhook/set/${instanceName}`, 'POST', body);
 
-            if (res && (res.status === 201 || res.status === 200 || res.webhook)) {
+            console.log('Webhook response:', res); // Debug para o usuário ver no F12 se precisar
+
+            // O backend retorna o objeto Webhook direto (sem campo status ou wrapper webhook)
+            // Verificamos se tem campos essenciais do webhook ou se veio status de sucesso explicito
+            if (res && (res.status === 201 || res.status === 200 || res.webhook || (res.id && res.instanceId) || res.enabled !== undefined)) {
                 showToast('Webhook salvo com sucesso!');
             } else {
                 const errorMsg = res?.message || (Array.isArray(res?.response?.message) ? res.response.message.join(', ') : res?.response?.message) || 'Erro ao salvar webhook';
