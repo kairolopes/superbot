@@ -49,35 +49,37 @@ export class WebhookController extends EventController implements EventControlle
       instanceId = instanceDb.id;
     }
 
-    try {
-      const result = await this.prisma.webhook.upsert({
-        where: {
-          instanceId,
-        },
-        update: {
+      try {
+        const updateData: any = {
           enabled: data.webhook?.enabled,
           events: data.webhook?.events,
           url: data.webhook?.url,
-          headers: data.webhook?.headers,
           webhookBase64: data.webhook.base64,
           webhookByEvents: data.webhook.byEvents,
-        },
-        create: {
-          enabled: data.webhook?.enabled,
-          events: data.webhook?.events,
-          instanceId,
-          url: data.webhook?.url,
-          headers: data.webhook?.headers,
-          webhookBase64: data.webhook.base64,
-          webhookByEvents: data.webhook.byEvents,
-        },
-      });
-      this.logger.warn(`[DEBUG] Webhook upsert success for ${instanceName}`);
-      return result;
-    } catch (error) {
-      this.logger.error(`[DEBUG] Webhook upsert failed for ${instanceName}: ${error.message}`);
-      throw new BadRequestException(`Failed to save webhook: ${error.message}`);
-    }
+        };
+
+        // Only include headers if they are not empty/null to avoid Prisma Json issues
+        if (data.webhook?.headers && Object.keys(data.webhook.headers).length > 0) {
+          updateData.headers = data.webhook.headers;
+        }
+
+        const result = await this.prisma.webhook.upsert({
+          where: {
+            instanceId,
+          },
+          update: updateData,
+          create: {
+            ...updateData,
+            instanceId,
+          },
+        });
+        this.logger.warn(`[DEBUG] Webhook upsert success for ${instanceName}`);
+        return result;
+      } catch (error) {
+        this.logger.error(`[DEBUG] Webhook upsert failed for ${instanceName}: ${error.message}`);
+        this.logger.error(`[DEBUG] Data: ${JSON.stringify(data.webhook)}`);
+        throw new BadRequestException(`Failed to save webhook: ${error.message}`);
+      }
   }
 
   public async emit({
