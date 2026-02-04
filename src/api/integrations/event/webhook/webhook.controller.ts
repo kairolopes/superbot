@@ -40,34 +40,44 @@ export class WebhookController extends EventController implements EventControlle
         where: { name: instanceName },
       });
 
+      this.logger.warn(`[DEBUG] Webhook Set - Instance: ${instanceName}, Found in DB: ${!!instanceDb}`);
+
       if (!instanceDb) {
+        this.logger.error(`[DEBUG] Instance "${instanceName}" not found in database. Query: { name: "${instanceName}" }`);
         throw new BadRequestException(`Instance "${instanceName}" not found in database (Offline Mode)`);
       }
       instanceId = instanceDb.id;
     }
 
-    return this.prisma.webhook.upsert({
-      where: {
-        instanceId,
-      },
-      update: {
-        enabled: data.webhook?.enabled,
-        events: data.webhook?.events,
-        url: data.webhook?.url,
-        headers: data.webhook?.headers,
-        webhookBase64: data.webhook.base64,
-        webhookByEvents: data.webhook.byEvents,
-      },
-      create: {
-        enabled: data.webhook?.enabled,
-        events: data.webhook?.events,
-        instanceId,
-        url: data.webhook?.url,
-        headers: data.webhook?.headers,
-        webhookBase64: data.webhook.base64,
-        webhookByEvents: data.webhook.byEvents,
-      },
-    });
+    try {
+      const result = await this.prisma.webhook.upsert({
+        where: {
+          instanceId,
+        },
+        update: {
+          enabled: data.webhook?.enabled,
+          events: data.webhook?.events,
+          url: data.webhook?.url,
+          headers: data.webhook?.headers,
+          webhookBase64: data.webhook.base64,
+          webhookByEvents: data.webhook.byEvents,
+        },
+        create: {
+          enabled: data.webhook?.enabled,
+          events: data.webhook?.events,
+          instanceId,
+          url: data.webhook?.url,
+          headers: data.webhook?.headers,
+          webhookBase64: data.webhook.base64,
+          webhookByEvents: data.webhook.byEvents,
+        },
+      });
+      this.logger.warn(`[DEBUG] Webhook upsert success for ${instanceName}`);
+      return result;
+    } catch (error) {
+      this.logger.error(`[DEBUG] Webhook upsert failed for ${instanceName}: ${error.message}`);
+      throw new BadRequestException(`Failed to save webhook: ${error.message}`);
+    }
   }
 
   public async emit({
