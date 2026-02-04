@@ -2892,7 +2892,7 @@ export class BaileysStartupService extends ChannelStartupService {
         { userJid: this.instance.wuid },
       );
     } catch (error) {
-      this.logger.error(`Error preparing media message: ${error.message}`, error.stack);
+      this.logger.error(`Error preparing media message: ${error.message}\n${error.stack}`);
       throw new InternalServerErrorException(error?.toString() || error);
     }
   }
@@ -3157,7 +3157,7 @@ export class BaileysStartupService extends ChannelStartupService {
         });
 
         outputAudioStream.on('error', (error) => {
-          this.logger.error(`Output audio stream error: ${error.message}`, error.stack);
+          this.logger.error(`Output audio stream error: ${error.message}\n${error.stack}`);
           reject(error);
         });
 
@@ -3200,7 +3200,7 @@ export class BaileysStartupService extends ChannelStartupService {
           ])
           .pipe(outputAudioStream, { end: true })
           .on('error', (error) => {
-            this.logger.error(`FFmpeg processing error: ${error.message}`, error.stack);
+            this.logger.error(`FFmpeg processing error: ${error.message}\n${error.stack}`);
             reject(error);
           });
       });
