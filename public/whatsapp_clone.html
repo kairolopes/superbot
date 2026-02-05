@@ -490,6 +490,17 @@
                 if (data.event === 'connection.update') {
                     console.log('Connection Update:', data.data);
                     const state = data.data.state || data.data.status;
+                    
+                    // Handle Conflict / Replaced Error
+                    if (data.data.reasonNode && data.data.reasonNode.tag === 'conflict') {
+                        updateStatus('Conflito: WhatsApp aberto em outro lugar ou reiniciando...', 'red');
+                        alert('Conflito de Conexão!\n\nParece que o WhatsApp foi conectado em outro local ou a sessão foi reiniciada.\n\nAguarde alguns segundos e tente reconectar.');
+                        
+                        // Optional: Auto-reload to clear state
+                        setTimeout(() => window.location.reload(), 3000);
+                        return;
+                    }
+
                     if (state === 'open' || state === 'connected') {
                         updateStatus('Instância Conectada!', 'green');
                         document.getElementById('qrCodeContainer').classList.add('hidden');
