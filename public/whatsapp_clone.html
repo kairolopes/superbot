@@ -309,7 +309,7 @@
              // For WebSocket, we connect directly to Render (socket.io handles CORS better/differently)
              if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 console.log('Using Render Direct for WebSocket');
-                return 'https://superbot-1.onrender.com';
+                return 'https://evolution-api-1p4o.onrender.com';
             }
             return getBaseUrl();
         };
