@@ -144,9 +144,20 @@
                 const instances = await fetchInstances();
                 
                 if (instances && instances.length > 0) {
-                    // Pick the first instance
-                    const firstInstance = instances[0];
-                    const name = firstInstance.instance.instanceName;
+                    // Try to find 'Principal' first, otherwise take the first one
+                    let targetInstance = instances.find(i => (i.name || i.instance?.instanceName) === 'Principal');
+                    
+                    if (!targetInstance) {
+                         targetInstance = instances[0];
+                    }
+
+                    // Handle different structures (API returns flat object in fetch, nested in create)
+                    const name = targetInstance.name || targetInstance.instance?.instanceName || targetInstance.instanceName;
+                    
+                    if (!name) {
+                         throw new Error('Formato de instância desconhecido: ' + JSON.stringify(targetInstance));
+                    }
+
                     activeInstance = name;
                     updateStatus(`Instância encontrada: ${name}. Conectando...`, 'blue');
                     
