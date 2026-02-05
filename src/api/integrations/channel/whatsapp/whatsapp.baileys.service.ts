@@ -124,6 +124,7 @@ import makeWASocket, {
   prepareWAMessageMedia,
   Product,
   proto,
+  useMultiFileAuthState,
   UserFacingSocketConfig,
   WABrowserDescription,
   WAMediaUpload,
@@ -131,7 +132,6 @@ import makeWASocket, {
   WAMessageKey,
   WAPresence,
   WASocket,
-  useMultiFileAuthState,
 } from 'baileys';
 import { Label } from 'baileys/lib/Types/Label';
 import { LabelAssociation } from 'baileys/lib/Types/LabelAssociation';
@@ -408,7 +408,7 @@ export class BaileysStartupService extends ChannelStartupService {
       qrcodeTerminal.generate(qr, { small: true }, (qrcode) =>
         this.logger.log(
           `\n{ instance: ${this.instance.name} pairingCode: ${this.instance.qrcode.pairingCode}, qrcodeCount: ${this.instance.qrcode.count} }\n` +
-          qrcode,
+            qrcode,
         ),
       );
 
@@ -440,15 +440,21 @@ export class BaileysStartupService extends ChannelStartupService {
           disconnectionObject: JSON.stringify(lastDisconnect),
         });
 
-        await this.prismaRepository.instance.update({
-          where: { id: this.instanceId },
-          data: {
-            connectionStatus: 'close',
-            disconnectionAt: new Date(),
-            disconnectionReasonCode: statusCode,
-            disconnectionObject: JSON.stringify(lastDisconnect),
-          },
-        });
+        try {
+          await this.prismaRepository.instance.update({
+            where: { id: this.instanceId },
+            data: {
+              connectionStatus: 'close',
+              disconnectionAt: new Date(),
+              disconnectionReasonCode: statusCode,
+              disconnectionObject: JSON.stringify(lastDisconnect),
+            },
+          });
+        } catch (error) {
+          if (error.code !== 'P2025') {
+            this.logger.error(error);
+          }
+        }
 
         if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED && this.localChatwoot?.enabled) {
           this.chatwootService.eventWhatsapp(
@@ -489,15 +495,23 @@ export class BaileysStartupService extends ChannelStartupService {
       `,
       );
 
-      await this.prismaRepository.instance.update({
-        where: { id: this.instanceId },
-        data: {
-          ownerJid: this.instance.wuid,
-          profileName: (await this.getProfileName()) as string,
-          profilePicUrl: this.instance.profilePictureUrl,
-          connectionStatus: 'open',
-        },
-      });
+      try {
+        await this.prismaRepository.instance.update({
+          where: { id: this.instanceId },
+          data: {
+            ownerJid: this.instance.wuid,
+            profileName: (await this.getProfileName()) as string,
+            profilePicUrl: this.instance.profilePictureUrl,
+            connectionStatus: 'open',
+          },
+        });
+      } catch (error) {
+        if (error.code === 'P2025') {
+          this.logger.warn(`Instance ${this.instance.name} not found in database during connection update.`);
+        } else {
+          this.logger.error(error);
+        }
+      }
 
       if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED && this.localChatwoot?.enabled) {
         this.chatwootService.eventWhatsapp(
@@ -1003,16 +1017,16 @@ export class BaileysStartupService extends ChannelStartupService {
 
         const messagesRepository: Set<string> = new Set(
           chatwootImport.getRepositoryMessagesCache(instance) ??
-          (
-            await this.prismaRepository.message.findMany({
-              select: { key: true },
-              where: { instanceId: this.instanceId },
-            })
-          ).map((message) => {
-            const key = message.key as { id: string };
+            (
+              await this.prismaRepository.message.findMany({
+                select: { key: true },
+                where: { instanceId: this.instanceId },
+              })
+            ).map((message) => {
+              const key = message.key as { id: string };
 
-            return key.id;
-          }),
+              return key.id;
+            }),
         );
 
         if (chatwootImport.getRepositoryMessagesCache(instance) === null) {
