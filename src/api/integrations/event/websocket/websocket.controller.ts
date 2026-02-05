@@ -32,7 +32,11 @@ export class WebsocketController extends EventController implements EventControl
 
           const { remoteAddress } = req.socket;
           const websocketConfig = configService.get<Websocket>('WEBSOCKET');
-          const allowedHosts = websocketConfig.ALLOWED_HOSTS || '127.0.0.1,::1,::ffff:127.0.0.1';
+          // Allow all hosts by default to fix connection issues on Render
+          const allowedHosts = websocketConfig.ALLOWED_HOSTS || '*';
+
+          this.logger.info(`Connection attempt from: ${remoteAddress}`);
+
           const allowAllHosts = allowedHosts.trim() === '*';
           const isAllowedHost =
             allowAllHosts ||
@@ -42,6 +46,7 @@ export class WebsocketController extends EventController implements EventControl
               .includes(remoteAddress);
 
           if (params.has('EIO') && isAllowedHost) {
+            this.logger.info(`Allowed host: ${remoteAddress}`);
             return callback(null, true);
           }
 
@@ -52,6 +57,7 @@ export class WebsocketController extends EventController implements EventControl
             return callback('apiKey is required', false);
           }
 
+          this.logger.info(`Checking API Key for instance: ${apiKey}`);
           const instance = await this.prismaRepository.instance.findFirst({ where: { token: apiKey } });
 
           if (!instance) {
@@ -62,6 +68,7 @@ export class WebsocketController extends EventController implements EventControl
             }
           }
 
+          this.logger.info('Connection authenticated');
           callback(null, true);
         } catch (error) {
           this.logger.error('Authentication error:');
@@ -72,7 +79,7 @@ export class WebsocketController extends EventController implements EventControl
     });
 
     this.socket.on('connection', (socket) => {
-      this.logger.info('User connected');
+      this.logger.info(`User connected: ${socket.id}`);
 
       socket.on('disconnect', () => {
         this.logger.info('User disconnected');
