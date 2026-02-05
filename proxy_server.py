@@ -5,9 +5,9 @@ import urllib.error
 import sys
 
 PORT = 8081
-TARGET_URL = "https://superbot-1.onrender.com"
+TARGET_URL = "https://evolution-api-1p4o.onrender.com"
 
-class ProxyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
@@ -44,10 +44,10 @@ class ProxyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(e.read())
         except Exception as e:
+            print(f"Error proxying request: {e}")
             self.send_response(500)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            print(f"Error: {e}")
             self.wfile.write(str(e).encode())
 
     def do_GET(self):
@@ -64,5 +64,10 @@ class ProxyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 print(f"Starting proxy on port {PORT} pointing to {TARGET_URL}")
 print("Usage: Configure your frontend to use http://localhost:8081 as Base URL")
-with socketserver.TCPServer(("", PORT), ProxyHTTPRequestHandler) as httpd:
-    httpd.serve_forever()
+
+try:
+    with socketserver.TCPServer(("", PORT), ProxyHTTPRequestHandler) as httpd:
+        print("Proxy server is running...")
+        httpd.serve_forever()
+except Exception as e:
+    print(f"Failed to start server: {e}")

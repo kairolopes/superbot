@@ -147,6 +147,7 @@
                  // Use the proxy we just set up!
                  document.getElementById('baseUrl').value = 'http://localhost:8081';
                  console.log('Forced Local Proxy URL for localhost');
+                 updateStatus('Modo Teste Local: Usando Proxy (Porta 8081)', 'blue');
             }
 
             await autoConnect();
@@ -170,8 +171,22 @@
         async function autoConnect() {
             updateStatus('Verificando instâncias...', 'yellow');
             try {
-                const instances = await fetchInstances();
+                let instances = await fetchInstances();
                 
+                // Handle non-array responses (wrappers, single objects, etc.)
+                if (!Array.isArray(instances)) {
+                    console.warn('Instances is not an array, attempting to parse:', instances);
+                    if (instances && typeof instances === 'object') {
+                        if (Array.isArray(instances.instances)) instances = instances.instances;
+                        else if (Array.isArray(instances.data)) instances = instances.data;
+                        else if (instances.instance) instances = [instances.instance]; // Single instance wrapper
+                        else if (Object.keys(instances).length > 0) instances = [instances]; // Treat as single instance
+                        else instances = []; // Empty object
+                    } else {
+                        instances = [];
+                    }
+                }
+
                 if (instances && instances.length > 0) {
                     // Try to find 'Principal' first, otherwise take the first one
                     let targetInstance = instances.find(i => (i.name || i.instance?.instanceName) === 'Principal');
@@ -305,16 +320,16 @@
                 const baseUrl = getBaseUrl();
                 console.log('Fetching instances from:', baseUrl);
                 const res = await axios.get(`${baseUrl}/instance/fetchInstances`, { headers: getHeaders() });
+                console.log('Fetch response:', res.data); // Debug response
                 return res.data;
             } catch (err) {
                 console.error('Error fetching instances:', err);
                 const baseUrl = getBaseUrl();
-                console.log('Failed URL:', `${baseUrl}/instance/fetchInstances`);
                 
                 if (err.response && err.response.status === 401) {
                     throw err; // Propagate auth error
                 }
-                return []; // Return empty for other errors (like network or empty list)
+                return []; // Return empty for other errors
             }
         }
 
