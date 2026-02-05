@@ -218,7 +218,18 @@
             'apikey': document.getElementById('apiKey').value || 'evolution-api-secret-key-123456'
         });
         
-        const getBaseUrl = () => document.getElementById('baseUrl').value.replace(/\/$/, '');
+        const getBaseUrl = () => {
+            const val = document.getElementById('baseUrl').value?.trim();
+            if (val) return val.replace(/\/$/, '');
+            
+            // Smart default for local testing
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                console.log('Using remote Render URL for local testing');
+                return 'https://superbot-1.onrender.com';
+            }
+            
+            return ''; // Relative for production
+        };
 
         // --- Instance Management ---
         async function fetchInstances() {
