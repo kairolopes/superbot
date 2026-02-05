@@ -160,8 +160,16 @@
                 }
             } catch (err) {
                 console.error('Auto-connect error:', err);
-                updateStatus('Erro na conexão automática. Tente manual.', 'red');
-                document.getElementById('manualConfig').classList.remove('hidden');
+                
+                if (err.response && err.response.status === 401) {
+                    updateStatus('Erro de Autenticação (401). Verifique a API Key acima.', 'red');
+                    alert('A API Key configurada está incorreta. Por favor, insira a chave correta no campo "Global API Key" no topo da página e recarregue.');
+                    document.getElementById('apiKey').focus();
+                    document.getElementById('apiKey').classList.add('border-red-500');
+                } else {
+                    updateStatus('Erro na conexão automática. Tente manual.', 'red');
+                    document.getElementById('manualConfig').classList.remove('hidden');
+                }
             }
         }
 
@@ -190,7 +198,10 @@
                 return res.data;
             } catch (err) {
                 console.error('Error fetching instances:', err);
-                return [];
+                if (err.response && err.response.status === 401) {
+                    throw err; // Propagate auth error
+                }
+                return []; // Return empty for other errors (like network or empty list)
             }
         }
 
