@@ -282,11 +282,20 @@
             
             // Smart default for local testing
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                console.log('Using remote Render URL for local testing');
-                return 'https://superbot-1.onrender.com';
+                console.log('Using Local Proxy for REST');
+                return 'http://localhost:8081'; // Proxy to Render to avoid CORS
             }
             
             return ''; // Relative for production
+        };
+
+        const getWsUrl = () => {
+             // For WebSocket, we connect directly to Render (socket.io handles CORS better/differently)
+             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                console.log('Using Render Direct for WebSocket');
+                return 'https://superbot-1.onrender.com';
+            }
+            return getBaseUrl();
         };
 
         // --- Instance Management ---
@@ -443,7 +452,7 @@
         function initWebSocket(instanceName) {
             if (socket) socket.disconnect();
             
-            const url = getBaseUrl();
+            const url = getWsUrl();
             const headers = getHeaders();
             
             socket = io(url, {
