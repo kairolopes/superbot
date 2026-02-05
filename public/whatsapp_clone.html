@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evolution API - Plataforma Conversacional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .message-bubble {
+            max-width: 75%;
+            word-wrap: break-word;
+        }
+        .bg-whatsapp-dark { background-color: #111b21; }
+        .bg-whatsapp-panel { background-color: #202c33; }
+        .bg-whatsapp-input { background-color: #2a3942; }
+        .bg-whatsapp-green { background-color: #00a884; }
+        .bg-whatsapp-outgoing { background-color: #005c4b; }
+        .text-whatsapp-gray { color: #8696a0; }
+    </style>
+</head>
+<body class="bg-whatsapp-dark text-gray-100 h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Config Bar -->
+    <div class="bg-whatsapp-panel p-2 flex justify-between items-center border-b border-gray-700 text-sm">
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-whatsapp-green"><i class="fab fa-whatsapp"></i> Evolution Clone</span>
+            <input type="text" id="apiKey" placeholder="Global API Key (do .env)" class="bg-whatsapp-input rounded px-2 py-1 text-xs w-64 border border-gray-600">
+            <input type="text" id="baseUrl" value="" class="bg-whatsapp-input rounded px-2 py-1 text-xs w-48 border border-gray-600">
+        </div>
+        <div id="connectionStatus" class="text-red-500 font-bold text-xs px-2">Desconectado</div>
+    </div>
+
+    <div class="flex flex-1 h-full overflow-hidden">
+        
+        <!-- Sidebar: Instances & Contacts -->
+        <div class="w-1/3 bg-whatsapp-dark border-r border-gray-700 flex flex-col min-w-[300px]">
+            
+            <!-- Instance Manager -->
+            <div class="bg-whatsapp-panel p-4 border-b border-gray-700">
+                <h3 class="text-gray-300 font-semibold mb-2 text-sm uppercase">Gerenciar Instância</h3>
+                <div class="flex gap-2 mb-2">
+                    <input type="text" id="instanceName" placeholder="Nome da Instância" class="flex-1 bg-whatsapp-input rounded px-3 py-2 focus:outline-none focus:border-whatsapp-green border border-transparent">
+                    <button onclick="createInstance()" class="bg-whatsapp-green hover:bg-emerald-600 text-white px-3 py-2 rounded transition"><i class="fas fa-plus"></i></button>
+                    <button onclick="connectInstance()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded transition"><i class="fas fa-qrcode"></i></button>
+                </div>
+                
+                <!-- QR Code Display -->
+                <div id="qrCodeContainer" class="hidden bg-white p-2 rounded mt-2 flex justify-center items-center flex-col">
+                    <img id="qrCodeImage" class="w-48 h-48 object-contain" src="" alt="QR Code">
+                    <p class="text-black text-xs mt-1 font-mono text-center">Escaneie com seu WhatsApp</p>
+                    <div id="pairingCodeContainer" class="mt-2 w-full hidden">
+                        <p class="text-black text-xs text-center mb-1">Ou use Código de Pareamento:</p>
+                        <div id="pairingCodeDisplay" class="text-black font-bold text-center text-lg tracking-widest bg-gray-100 p-1 rounded"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact List (Mocked/Active) -->
+            <div class="flex-1 overflow-y-auto">
+                <div class="p-3 bg-whatsapp-panel sticky top-0 z-10">
+                    <input type="text" id="phoneInput" placeholder="Novo Chat (5511999999999)" class="w-full bg-whatsapp-input rounded px-3 py-2 text-sm focus:outline-none">
+                </div>
+                <div id="chatList" class="divide-y divide-gray-800">
+                    <!-- Chat items will be injected here -->
+                    <div class="p-4 text-center text-gray-500 text-sm italic">
+                        Nenhuma conversa ativa.<br>Digite um número acima para começar.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="flex-1 flex flex-col bg-[#0b141a] relative">
+            <!-- Chat Background Pattern -->
+            <div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');"></div>
+
+            <!-- Chat Header -->
+            <div class="bg-whatsapp-panel p-3 flex items-center justify-between border-b border-gray-700 z-20">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-500 flex items-center justify-center overflow-hidden">
+                        <i class="fas fa-user text-gray-300"></i>
+                    </div>
+                    <div>
+                        <h2 id="currentChatName" class="font-semibold text-gray-100">Selecione um chat</h2>
+                        <p id="currentChatStatus" class="text-xs text-gray-400"></p>
+                    </div>
+                </div>
+                <div class="flex gap-4 text-whatsapp-gray text-lg">
+                    <button><i class="fas fa-search"></i></button>
+                    <button><i class="fas fa-paperclip"></i></button>
+                    <button><i class="fas fa-ellipsis-v"></i></button>
+                </div>
+            </div>
+
+            <!-- Messages Container -->
+            <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-2 z-10 scrollbar-hide">
+                <!-- Messages will be injected here -->
+            </div>
+
+            <!-- Message Input -->
+            <div class="bg-whatsapp-panel p-3 z-20">
+                <div class="flex items-center gap-3">
+                    <button class="text-whatsapp-gray text-xl"><i class="far fa-smile"></i></button>
+                    <input type="text" id="messageInput" placeholder="Digite uma mensagem" class="flex-1 bg-whatsapp-input rounded-lg px-4 py-2 text-gray-100 focus:outline-none" onkeypress="handleEnter(event)">
+                    <button onclick="sendMessage()" class="text-whatsapp-gray hover:text-whatsapp-green text-xl"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        let activeInstance = '';
+        let activeChat = '';
+        
+        // Auto-detect URL
+        document.getElementById('baseUrl').value = window.location.origin;
+        
+        // --- API Helpers ---
+        const getHeaders = () => ({
+            'apikey': document.getElementById('apiKey').value || 'B6D711FCDE4D4FD5936544120E713976' // Default API Key if not set
+        });
+        
+        const getBaseUrl = () => document.getElementById('baseUrl').value.replace(/\/$/, '');
+
+        // --- Instance Management ---
+        async function createInstance() {
+            const name = document.getElementById('instanceName').value;
+            if (!name) return alert('Digite um nome para a instância');
+            
+            try {
+                const res = await axios.post(`${getBaseUrl()}/instance/create`, {
+                    instanceName: name,
+                    qrcode: true,
+                    integration: 'WHATSAPP-BAILEYS'
+                }, { headers: getHeaders() });
+
+                activeInstance = res.data.instance.instanceName;
+                alert(`Instância ${activeInstance} criada!`);
+                
+                if (res.data.qrcode && res.data.qrcode.base64) {
+                    showQrCode(res.data.qrcode.base64);
+                }
+                
+                initWebSocket(activeInstance);
+                
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao criar instância: ' + (err.response?.data?.message || err.message));
+            }
+        }
+
+        async function connectInstance() {
+            const name = document.getElementById('instanceName').value;
+            if (!name) return alert('Digite o nome da instância para conectar');
+            activeInstance = name;
+
+            try {
+                const res = await axios.get(`${getBaseUrl()}/instance/connect/${name}`, { headers: getHeaders() });
+                
+                if (res.data.base64 || (res.data.qrcode && res.data.qrcode.base64)) {
+                    showQrCode(res.data.base64 || res.data.qrcode.base64);
+                } else if (res.data.instance && res.data.instance.state === 'open') {
+                    alert('Instância já está conectada!');
+                    document.getElementById('qrCodeContainer').classList.add('hidden');
+                }
+                
+                initWebSocket(name);
+
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao conectar: ' + (err.response?.data?.message || err.message));
+            }
+        }
+
+        function showQrCode(base64) {
+            const container = document.getElementById('qrCodeContainer');
+            const img = document.getElementById('qrCodeImage');
+            img.src = base64;
+            container.classList.remove('hidden');
+        }
+
+        // --- WebSocket ---
+        function initWebSocket(instanceName) {
+            if (socket) socket.disconnect();
+            
+            const url = getBaseUrl();
+            socket = io(url, {
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                document.getElementById('connectionStatus').innerText = 'Conectado (WS)';
+                document.getElementById('connectionStatus').classList.remove('text-red-500');
+                document.getElementById('connectionStatus').classList.add('text-green-500');
+                console.log('WebSocket Connected');
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('connectionStatus').innerText = 'Desconectado';
+                document.getElementById('connectionStatus').classList.add('text-red-500');
+            });
+
+            // Listen to generic events
+            socket.on(`events`, (data) => {
+                console.log('Event received:', data);
+                if (data.event === 'messages.upsert') {
+                    handleIncomingMessage(data.data);
+                }
+                if (data.event === 'qrcode.updated') {
+                    if (data.data.qrcode && data.data.qrcode.base64) {
+                         showQrCode(data.data.qrcode.base64);
+                    }
+                }
+                if (data.event === 'connection.update') {
+                    if (data.data.state === 'open') {
+                        document.getElementById('qrCodeContainer').classList.add('hidden');
+                        alert('WhatsApp Conectado com Sucesso!');
+                    }
+                }
+            });
+            
+            // Subscribe to specific instance events if necessary (Evolution API broadcasts usually)
+        }
+
+        // --- Chat Logic ---
+        document.getElementById('phoneInput').addEventListener('input', (e) => {
+            const number = e.target.value;
+            if (number.length >= 10) {
+                setActiveChat(number);
+            }
+        });
+
+        function setActiveChat(number) {
+            activeChat = number.replace(/\D/g, ''); // Remove non-digits
+            if (!activeChat.includes('@s.whatsapp.net') && !activeChat.includes('@g.us')) {
+                activeChat += '@s.whatsapp.net';
+            }
+            
+            document.getElementById('currentChatName').innerText = activeChat.split('@')[0];
+            document.getElementById('currentChatStatus').innerText = 'online'; // Mocked
+            
+            // Clear messages or load history (if implemented)
+            document.getElementById('messagesContainer').innerHTML = '';
+            
+            // Add to chat list visual
+            updateChatList(activeChat);
+        }
+
+        function updateChatList(jid) {
+            const list = document.getElementById('chatList');
+            // Check if exists
+            if (!document.getElementById(`chat-${jid}`)) {
+                const item = document.createElement('div');
+                item.id = `chat-${jid}`;
+                item.className = 'p-3 flex items-center gap-3 hover:bg-whatsapp-input cursor-pointer border-b border-gray-800 transition';
+                item.onclick = () => setActiveChat(jid.split('@')[0]);
+                item.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center"><i class="fas fa-user"></i></div>
+                    <div class="flex-1">
+                        <div class="flex justify-between">
+                            <span class="font-semibold text-gray-200 text-sm">${jid.split('@')[0]}</span>
+                            <span class="text-xs text-gray-500">Agora</span>
+                        </div>
+                        <p class="text-xs text-gray-400 truncate">Clique para conversar</p>
+                    </div>
+                `;
+                list.prepend(item);
+            }
+        }
+
+        async function sendMessage() {
+            const text = document.getElementById('messageInput').value;
+            if (!text || !activeChat || !activeInstance) return;
+
+            // Add bubble locally immediately
+            addMessageBubble(text, true);
+            document.getElementById('messageInput').value = '';
+
+            try {
+                await axios.post(`${getBaseUrl()}/message/sendText/${activeInstance}`, {
+                    number: activeChat.split('@')[0],
+                    text: text,
+                    delay: 1200
+                }, { headers: getHeaders() });
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao enviar mensagem');
+            }
+        }
+
+        function handleIncomingMessage(msgData) {
+            // Check if message is for current chat
+            const msg = msgData.message || msgData;
+            const from = msg.key?.remoteJid;
+            
+            // Update chat list
+            updateChatList(from);
+
+            // If chat is open, append message
+            if (from === activeChat) {
+                const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || 'Mídia recebida';
+                const isMe = msg.key?.fromMe;
+                addMessageBubble(text, isMe);
+            }
+        }
+
+        function addMessageBubble(text, isMe) {
+            const container = document.getElementById('messagesContainer');
+            const div = document.createElement('div');
+            div.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
+            div.innerHTML = `
+                <div class="message-bubble px-3 py-1 rounded-lg text-sm shadow ${isMe ? 'bg-whatsapp-outgoing text-white rounded-tr-none' : 'bg-whatsapp-panel text-gray-100 rounded-tl-none'}">
+                    <div>${text}</div>
+                    <div class="text-[10px] text-right ${isMe ? 'text-blue-100' : 'text-gray-400'} mt-1 opacity-70">
+                        ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        ${isMe ? '<i class="fas fa-check-double ml-1"></i>' : ''}
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+    </script>
+</body>
+</html>
