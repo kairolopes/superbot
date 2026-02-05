@@ -43,11 +43,22 @@
             
             <!-- Instance Manager -->
             <div class="bg-whatsapp-panel p-4 border-b border-gray-700">
-                <h3 class="text-gray-300 font-semibold mb-2 text-sm uppercase">Gerenciar Instância</h3>
-                <div class="flex gap-2 mb-2">
-                    <input type="text" id="instanceName" placeholder="Nome da Instância" class="flex-1 bg-whatsapp-input rounded px-3 py-2 focus:outline-none focus:border-whatsapp-green border border-transparent">
-                    <button onclick="createInstance()" class="bg-whatsapp-green hover:bg-emerald-600 text-white px-3 py-2 rounded transition"><i class="fas fa-plus"></i></button>
-                    <button onclick="connectInstance()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded transition"><i class="fas fa-qrcode"></i></button>
+                <h3 class="text-gray-300 font-semibold mb-2 text-sm uppercase flex justify-between items-center">
+                    Status da Conexão
+                    <button onclick="toggleManualConfig()" class="text-xs text-gray-500 hover:text-gray-300"><i class="fas fa-cog"></i></button>
+                </h3>
+                
+                <div id="statusMessage" class="text-yellow-500 text-sm mb-2 font-mono animate-pulse">
+                    <i class="fas fa-circle-notch fa-spin"></i> Iniciando sistema...
+                </div>
+
+                <!-- Manual Config (Hidden by default) -->
+                <div id="manualConfig" class="hidden mb-2">
+                    <div class="flex gap-2">
+                        <input type="text" id="instanceName" placeholder="Nome da Instância" class="flex-1 bg-whatsapp-input rounded px-3 py-2 focus:outline-none focus:border-whatsapp-green border border-transparent">
+                        <button onclick="createInstance()" class="bg-whatsapp-green hover:bg-emerald-600 text-white px-3 py-2 rounded transition"><i class="fas fa-plus"></i></button>
+                        <button onclick="connectInstance()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded transition"><i class="fas fa-qrcode"></i></button>
+                    </div>
                 </div>
                 
                 <!-- QR Code Display -->
@@ -122,6 +133,49 @@
         // Auto-detect URL
         document.getElementById('baseUrl').value = window.location.origin;
         
+        // --- Initialization ---
+        window.onload = async () => {
+            await autoConnect();
+        };
+
+        async function autoConnect() {
+            updateStatus('Verificando instâncias...', 'yellow');
+            try {
+                const instances = await fetchInstances();
+                
+                if (instances && instances.length > 0) {
+                    // Pick the first instance
+                    const firstInstance = instances[0];
+                    const name = firstInstance.instance.instanceName;
+                    activeInstance = name;
+                    updateStatus(`Instância encontrada: ${name}. Conectando...`, 'blue');
+                    
+                    // Fill the manual input just in case
+                    document.getElementById('instanceName').value = name;
+                    
+                    await connectInstance(name);
+                } else {
+                    updateStatus('Nenhuma instância encontrada. Criando padrão...', 'blue');
+                    await createInstance('Principal');
+                }
+            } catch (err) {
+                console.error('Auto-connect error:', err);
+                updateStatus('Erro na conexão automática. Tente manual.', 'red');
+                document.getElementById('manualConfig').classList.remove('hidden');
+            }
+        }
+
+        function updateStatus(msg, color = 'gray') {
+            const el = document.getElementById('statusMessage');
+            el.innerHTML = `<i class="fas fa-info-circle"></i> ${msg}`;
+            el.className = `text-${color}-500 text-sm mb-2 font-mono`;
+            if (color === 'yellow') el.classList.add('animate-pulse');
+        }
+
+        function toggleManualConfig() {
+            document.getElementById('manualConfig').classList.toggle('hidden');
+        }
+
         // --- API Helpers ---
         const getHeaders = () => ({
             'apikey': document.getElementById('apiKey').value || 'B6D711FCDE4D4FD5936544120E713976' // Default API Key if not set
@@ -130,10 +184,22 @@
         const getBaseUrl = () => document.getElementById('baseUrl').value.replace(/\/$/, '');
 
         // --- Instance Management ---
-        async function createInstance() {
-            const name = document.getElementById('instanceName').value;
+        async function fetchInstances() {
+            try {
+                const res = await axios.get(`${getBaseUrl()}/instance/fetchInstances`, { headers: getHeaders() });
+                return res.data;
+            } catch (err) {
+                console.error('Error fetching instances:', err);
+                return [];
+            }
+        }
+
+        async function createInstance(forceName = null) {
+            const name = forceName || document.getElementById('instanceName').value;
             if (!name) return alert('Digite um nome para a instância');
             
+            updateStatus(`Criando instância: ${name}...`, 'blue');
+
             try {
                 const res = await axios.post(`${getBaseUrl()}/instance/create`, {
                     instanceName: name,
@@ -142,8 +208,11 @@
                 }, { headers: getHeaders() });
 
                 activeInstance = res.data.instance.instanceName;
-                alert(`Instância ${activeInstance} criada!`);
+                updateStatus(`Instância ${activeInstance} criada! Gerando QR Code...`, 'green');
                 
+                // Fill manual input
+                document.getElementById('instanceName').value = activeInstance;
+
                 if (res.data.qrcode && res.data.qrcode.base64) {
                     showQrCode(res.data.qrcode.base64);
                 }
@@ -152,29 +221,35 @@
                 
             } catch (err) {
                 console.error(err);
+                updateStatus('Erro ao criar instância. Verifique logs.', 'red');
                 alert('Erro ao criar instância: ' + (err.response?.data?.message || err.message));
             }
         }
 
-        async function connectInstance() {
-            const name = document.getElementById('instanceName').value;
+        async function connectInstance(forceName = null) {
+            const name = forceName || document.getElementById('instanceName').value;
             if (!name) return alert('Digite o nome da instância para conectar');
             activeInstance = name;
+            
+            updateStatus(`Verificando status de ${name}...`, 'blue');
 
             try {
                 const res = await axios.get(`${getBaseUrl()}/instance/connect/${name}`, { headers: getHeaders() });
                 
                 if (res.data.base64 || (res.data.qrcode && res.data.qrcode.base64)) {
+                    updateStatus('Aguardando leitura do QR Code...', 'yellow');
                     showQrCode(res.data.base64 || res.data.qrcode.base64);
                 } else if (res.data.instance && res.data.instance.state === 'open') {
-                    alert('Instância já está conectada!');
+                    updateStatus('Instância Conectada!', 'green');
                     document.getElementById('qrCodeContainer').classList.add('hidden');
+                    alert('Instância já está conectada!');
                 }
                 
                 initWebSocket(name);
 
             } catch (err) {
                 console.error(err);
+                updateStatus('Erro ao conectar. Tente novamente.', 'red');
                 alert('Erro ao conectar: ' + (err.response?.data?.message || err.message));
             }
         }
