@@ -360,6 +360,22 @@
             }
         }
 
+        async function enableWebsocketEvents(instanceName) {
+            try {
+                console.log(`Enabling WebSocket events for ${instanceName}...`);
+                await axios.post(`${getBaseUrl()}/websocket/set/${instanceName}`, {
+                    websocket: {
+                        enabled: true,
+                        events: [] // Empty array enables ALL events by default
+                    }
+                }, { headers: getHeaders() });
+                console.log('WebSocket events enabled!');
+            } catch (err) {
+                console.error('Error enabling WebSocket events:', err);
+                // Don't fail the flow, just log
+            }
+        }
+
         async function createInstance(forceName = null) {
             const name = forceName || document.getElementById('instanceName').value;
             if (!name) return alert('Digite um nome para a instância');
@@ -378,6 +394,9 @@
                 
                 // Fill manual input
                 document.getElementById('instanceName').value = activeInstance;
+
+                // Enable Events
+                await enableWebsocketEvents(activeInstance);
 
                 if (res.data.qrcode && res.data.qrcode.base64) {
                     showQrCode(res.data.qrcode.base64);
@@ -403,6 +422,9 @@
                 // Initialize WebSocket BEFORE connecting to ensure we catch early events
                 initWebSocket(name);
                 
+                // Enable Events
+                await enableWebsocketEvents(name);
+
                 const res = await axios.get(`${getBaseUrl()}/instance/connect/${name}`, { headers: getHeaders() });
                 
                 // Check if already connected (state: open)
@@ -471,7 +493,11 @@
             const url = getWsUrl();
             const headers = getHeaders();
             
-            socket = io(url, {
+            // Connect to instance-specific namespace
+            const namespaceUrl = `${url}/${instanceName}`;
+            console.log('Connecting WebSocket to namespace:', namespaceUrl);
+
+            socket = io(namespaceUrl, {
                 transports: ['websocket', 'polling'],
                 query: {
                     apikey: headers.apikey
