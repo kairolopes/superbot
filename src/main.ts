@@ -48,6 +48,12 @@ async function bootstrap() {
     cors({
       origin(requestOrigin, callback) {
         const { ORIGIN } = configService.get<Cors>('CORS');
+        
+        // Always allow localhost for testing
+        if (requestOrigin && (requestOrigin.includes('localhost') || requestOrigin.includes('127.0.0.1'))) {
+           return callback(null, true);
+        }
+
         if (ORIGIN.includes('*')) {
           return callback(null, true);
         }
