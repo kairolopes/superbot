@@ -412,10 +412,18 @@ export class BaileysStartupService extends ChannelStartupService {
         ),
       );
 
-      await this.prismaRepository.instance.update({
-        where: { id: this.instanceId },
-        data: { connectionStatus: 'connecting' },
-      });
+      try {
+        await this.prismaRepository.instance.update({
+          where: { id: this.instanceId },
+          data: { connectionStatus: 'connecting' },
+        });
+      } catch (error) {
+        if (error.code === 'P2025') {
+          this.logger.warn(`Instance ${this.instance.name} not found in database during QR code generation.`);
+        } else {
+          this.logger.error(error);
+        }
+      }
     }
 
     if (connection) {
