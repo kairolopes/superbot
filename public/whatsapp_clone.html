@@ -366,7 +366,11 @@
                 await axios.post(`${getBaseUrl()}/websocket/set/${instanceName}`, {
                     websocket: {
                         enabled: true,
-                        events: [] // Empty array enables ALL events by default
+                        events: [
+                            'MESSAGES_UPSERT', 
+                            'QRCODE_UPDATED', 
+                            'CONNECTION_UPDATE'
+                        ]
                     }
                 }, { headers: getHeaders() });
                 console.log('WebSocket events enabled!');
@@ -526,45 +530,69 @@
                 document.getElementById('connectionStatus').classList.add('text-red-500');
             });
 
-            // Listen to generic events
-            socket.on(`events`, (data) => {
-                console.log('Event received:', data);
-                if (data.event === 'messages.upsert') {
-                    handleIncomingMessage(data.data);
-                }
-                if (data.event === 'qrcode.updated') {
-                    if (data.data.qrcode && data.data.qrcode.base64) {
-                         showQrCode(data.data.qrcode.base64);
-                    }
-                }
-                // Check connection status updates
-                if (data.event === 'connection.update') {
-                    console.log('Connection Update:', data.data);
-                    const state = data.data.state || data.data.status;
-                    
-                    // Handle Conflict / Replaced Error
-                    if (data.data.reasonNode && data.data.reasonNode.tag === 'conflict') {
-                        updateStatus('Conflito: WhatsApp aberto em outro lugar ou reiniciando...', 'red');
-                        alert('Conflito de Conexão!\n\nParece que o WhatsApp foi conectado em outro local ou a sessão foi reiniciada.\n\nAguarde alguns segundos e tente reconectar.');
-                        
-                        // Optional: Auto-reload to clear state
-                        setTimeout(() => window.location.reload(), 3000);
-                        return;
-                    }
+            // Debug: Listen to all events
+            socket.onAny((event, ...args) => {
+                console.log(`[WS DEBUG] Event: ${event}`, args);
+            });
 
-                    if (state === 'open' || state === 'connected') {
-                        updateStatus('Instância Conectada!', 'green');
-                        document.getElementById('qrCodeContainer').classList.add('hidden');
-                        document.getElementById('testMessageBtn').classList.remove('hidden');
-                        
-                        // Force a reload of chat list logic or just alert
-                        if (!document.getElementById('chatList').innerHTML.includes('online')) {
-                             updateStatus('Pronto para uso.', 'green');
-                             fetchChats(); // Load chats automatically
-                        }
-                    }
+            // Listen to specific events (support both lowercase and uppercase to be safe)
+            const handleMessagesUpsert = (data) => {
+                console.log('Message Received (Upsert):', data);
+                // Handle both { data: ... } and direct data payload if structure varies
+                const msgData = data.data || data; 
+                handleIncomingMessage(msgData);
+            };
+
+            socket.on('messages.upsert', handleMessagesUpsert);
+            socket.on('MESSAGES_UPSERT', handleMessagesUpsert);
+
+            socket.on('qrcode.updated', (data) => {
+                console.log('QR Code Update:', data);
+                if (data.data && data.data.qrcode && data.data.qrcode.base64) {
+                     showQrCode(data.data.qrcode.base64);
                 }
             });
+            socket.on('QRCODE_UPDATED', (data) => {
+                console.log('QR Code Update (Upper):', data);
+                if (data.data && data.data.qrcode && data.data.qrcode.base64) {
+                     showQrCode(data.data.qrcode.base64);
+                }
+            });
+
+            socket.on('connection.update', (data) => {
+                console.log('Connection Update:', data);
+                handleConnectionUpdate(data);
+            });
+            socket.on('CONNECTION_UPDATE', (data) => {
+                console.log('Connection Update (Upper):', data);
+                handleConnectionUpdate(data);
+            });
+        }
+
+        function handleConnectionUpdate(data) {
+            const state = data.data.state || data.data.status;
+            
+            // Handle Conflict / Replaced Error
+            if (data.data.reasonNode && data.data.reasonNode.tag === 'conflict') {
+                updateStatus('Conflito: WhatsApp aberto em outro lugar ou reiniciando...', 'red');
+                alert('Conflito de Conexão!\n\nParece que o WhatsApp foi conectado em outro local ou a sessão foi reiniciada.\n\nAguarde alguns segundos e tente reconectar.');
+                
+                // Optional: Auto-reload to clear state
+                setTimeout(() => window.location.reload(), 3000);
+                return;
+            }
+
+            if (state === 'open' || state === 'connected') {
+                updateStatus('Instância Conectada!', 'green');
+                document.getElementById('qrCodeContainer').classList.add('hidden');
+                document.getElementById('testMessageBtn').classList.remove('hidden');
+                
+                // Force a reload of chat list logic or just alert
+                if (!document.getElementById('chatList').innerHTML.includes('online')) {
+                     updateStatus('Pronto para uso.', 'green');
+                     fetchChats(); // Load chats automatically
+                }
+            }
         }
 
         async function fetchChats() {
@@ -720,17 +748,22 @@
         }
 
         function handleIncomingMessage(msgData) {
-            // Check if message is for current chat
-            const msg = msgData.message || msgData;
-            const from = msg.key?.remoteJid;
+            console.log('Handling incoming message:', msgData);
+            // msgData is the 'data' object from the event
+            const key = msgData.key;
+            const messageContent = msgData.message;
+            
+            if (!key || !key.remoteJid) return;
+
+            const from = key.remoteJid;
             
             // Update chat list
             updateChatList(from);
 
             // If chat is open, append message
             if (from === activeChat) {
-                const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || 'Mídia recebida';
-                const isMe = msg.key?.fromMe;
+                const text = messageContent?.conversation || messageContent?.extendedTextMessage?.text || 'Mídia recebida';
+                const isMe = key.fromMe;
                 addMessageBubble(text, isMe);
             }
         }
