@@ -197,6 +197,14 @@ router
     res.sendFile(path.join(process.cwd(), 'public', 'images', 'evolution-logo.png'));
   })
 
+  .get('/health', (req, res) => {
+    res.status(HttpStatus.OK).json({
+      status: HttpStatus.OK,
+      message: 'Healthy',
+      date: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  })
   .get('/', async (req, res) => {
     res.status(HttpStatus.OK).json({
       status: HttpStatus.OK,

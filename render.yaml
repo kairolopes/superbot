@@ -7,7 +7,7 @@ services:
     autoDeploy: true
     buildCommand: npm ci && export DATABASE_PROVIDER=postgresql && npm run db:generate && npm run db:deploy && npm run build
     startCommand: npm run start:prod
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
       - key: DATABASE_PROVIDER
         value: postgresql
