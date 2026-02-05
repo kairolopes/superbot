@@ -47,6 +47,7 @@
                     Status da Conexão
                     <div class="flex gap-2">
                         <button id="deleteInstanceBtn" onclick="deleteInstance()" class="text-xs text-red-500 hover:text-red-300 hidden" title="Excluir Instância"><i class="fas fa-trash"></i></button>
+                        <button id="testMessageBtn" onclick="sendTestMessage()" class="text-xs text-blue-500 hover:text-blue-300 hidden" title="Enviar Mensagem de Teste"><i class="fas fa-paper-plane"></i></button>
                         <button onclick="toggleManualConfig()" class="text-xs text-gray-500 hover:text-gray-300"><i class="fas fa-cog"></i></button>
                     </div>
                 </h3>
@@ -168,9 +169,10 @@
                     document.getElementById('instanceName').value = name;
                     
                     // Show delete button
-                    document.getElementById('deleteInstanceBtn').classList.remove('hidden');
+              document.getElementById('deleteInstanceBtn').classList.remove('hidden');
+              document.getElementById('testMessageBtn').classList.remove('hidden'); // Optimistic show
 
-                    await connectInstance(name);
+              await connectInstance(name);
                 } else {
                     updateStatus('Nenhuma instância encontrada. Criando padrão...', 'blue');
                     await createInstance('Principal');
@@ -232,6 +234,33 @@
             }
         }
 
+        async function sendTestMessage() {
+            if (!activeInstance) return alert('Nenhuma instância conectada.');
+            
+            const number = prompt('Digite o número para teste (ex: 5511999999999):');
+            if (!number) return;
+
+            updateStatus('Enviando mensagem de teste...', 'blue');
+            try {
+                await axios.post(`${getBaseUrl()}/message/sendText/${activeInstance}`, {
+                    number: number,
+                    text: '🤖 Olá! Esta é uma mensagem de teste do SuperBot.',
+                    delay: 1200
+                }, { headers: getHeaders() });
+                
+                alert('Mensagem enviada com sucesso!');
+                updateStatus('Pronto para uso.', 'green');
+                
+                // Open chat if success
+                openChat(number + '@s.whatsapp.net', number, 'https://via.placeholder.com/40');
+
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao enviar mensagem de teste: ' + (err.response?.data?.message || err.message));
+                updateStatus('Erro no envio.', 'red');
+            }
+        }
+
         async function createInstance(forceName = null) {
             const name = forceName || document.getElementById('instanceName').value;
             if (!name) return alert('Digite um nome para a instância');
@@ -281,6 +310,8 @@
                 if (res.data.instance && res.data.instance.state === 'open') {
                     updateStatus('Instância Conectada!', 'green');
                     document.getElementById('qrCodeContainer').classList.add('hidden');
+                    document.getElementById('testMessageBtn').classList.remove('hidden');
+                    fetchChats();
                     return;
                 }
 
@@ -388,16 +419,102 @@
                     if (state === 'open' || state === 'connected') {
                         updateStatus('Instância Conectada!', 'green');
                         document.getElementById('qrCodeContainer').classList.add('hidden');
+                        document.getElementById('testMessageBtn').classList.remove('hidden');
                         
                         // Force a reload of chat list logic or just alert
                         if (!document.getElementById('chatList').innerHTML.includes('online')) {
                              updateStatus('Pronto para uso.', 'green');
+                             fetchChats(); // Load chats automatically
                         }
                     }
                 }
             });
+        }
+
+        async function fetchChats() {
+            if (!activeInstance) return;
+            try {
+                // Try to fetch chats
+                const res = await axios.post(`${getBaseUrl()}/chat/findChats/${activeInstance}`, {}, { headers: getHeaders() });
+                const chats = res.data || []; // Adjust based on actual response structure
+                
+                // If no chats, maybe try contacts or just show empty
+                if (Array.isArray(chats) && chats.length > 0) {
+                    renderChatList(chats);
+                } else {
+                    console.log('Nenhum chat encontrado via API, aguardando mensagens...');
+                }
+            } catch (err) {
+                console.error('Erro ao buscar chats:', err);
+                // Don't alert user, just log
+            }
+        }
+
+        function renderChatList(chats) {
+            const list = document.getElementById('chatList');
+            list.innerHTML = '';
             
-            // Subscribe to specific instance events if necessary (Evolution API broadcasts usually)
+            chats.forEach(chat => {
+                const id = chat.id || chat.remoteJid;
+                if (!id) return;
+                
+                const name = chat.pushName || chat.name || id.split('@')[0];
+                const pic = chat.profilePictureUrl || 'https://via.placeholder.com/40';
+                
+                const div = document.createElement('div');
+                div.className = 'flex items-center p-3 hover:bg-whatsapp-panel cursor-pointer border-b border-gray-700 transition-colors';
+                div.onclick = () => openChat(id, name, pic);
+                div.innerHTML = `
+                    <img src="${pic}" class="w-10 h-10 rounded-full mr-3 object-cover">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline">
+                            <h3 class="font-medium text-gray-100 truncate">${name}</h3>
+                            <span class="text-xs text-gray-400">Ontem</span>
+                        </div>
+                        <p class="text-sm text-gray-400 truncate">Clique para abrir conversa</p>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        async function openChat(id, name, pic) {
+            activeChat = id;
+            // Use existing elements to avoid ID errors
+            const nameEl = document.getElementById('currentChatName');
+            const statusEl = document.getElementById('currentChatStatus');
+            if (nameEl) nameEl.innerText = name;
+            if (statusEl) statusEl.innerText = id;
+
+            document.getElementById('messagesContainer').innerHTML = '';
+            
+            // Enable inputs
+            const msgInput = document.getElementById('messageInput');
+            if (msgInput) msgInput.disabled = false;
+            
+            // Fetch messages
+            await fetchMessages(id);
+        }
+
+        async function fetchMessages(remoteJid) {
+            try {
+                const res = await axios.post(`${getBaseUrl()}/chat/findMessages/${activeInstance}`, {
+                    where: { key: { remoteJid } },
+                    take: 20,
+                    orderBy: { messageTimestamp: 'asc' }
+                }, { headers: getHeaders() });
+                
+                const messages = res.data?.messages?.records || res.data || [];
+                
+                messages.forEach(msg => {
+                     const content = msg.message?.conversation || msg.message?.extendedTextMessage?.text || 'Mídia/Outro';
+                     const isMe = msg.key?.fromMe;
+                     addMessageBubble(content, isMe);
+                });
+
+            } catch (err) {
+                console.error('Erro ao buscar mensagens:', err);
+            }
         }
 
         // --- Chat Logic ---
