@@ -45,7 +45,10 @@
             <div class="bg-whatsapp-panel p-4 border-b border-gray-700">
                 <h3 class="text-gray-300 font-semibold mb-2 text-sm uppercase flex justify-between items-center">
                     Status da Conexão
-                    <button onclick="toggleManualConfig()" class="text-xs text-gray-500 hover:text-gray-300"><i class="fas fa-cog"></i></button>
+                    <div class="flex gap-2">
+                        <button id="deleteInstanceBtn" onclick="deleteInstance()" class="text-xs text-red-500 hover:text-red-300 hidden" title="Excluir Instância"><i class="fas fa-trash"></i></button>
+                        <button onclick="toggleManualConfig()" class="text-xs text-gray-500 hover:text-gray-300"><i class="fas fa-cog"></i></button>
+                    </div>
                 </h3>
                 
                 <div id="statusMessage" class="text-yellow-500 text-sm mb-2 font-mono animate-pulse">
@@ -164,6 +167,9 @@
                     // Fill the manual input just in case
                     document.getElementById('instanceName').value = name;
                     
+                    // Show delete button
+                    document.getElementById('deleteInstanceBtn').classList.remove('hidden');
+
                     await connectInstance(name);
                 } else {
                     updateStatus('Nenhuma instância encontrada. Criando padrão...', 'blue');
@@ -283,6 +289,37 @@
                 console.error(err);
                 updateStatus('Erro ao conectar. Tente novamente.', 'red');
                 alert('Erro ao conectar: ' + (err.response?.data?.message || err.message));
+            }
+        }
+
+        async function deleteInstance(forceName = null) {
+            const name = forceName || document.getElementById('instanceName').value || activeInstance;
+            if (!name) return alert('Nenhuma instância selecionada para excluir');
+            
+            if (!confirm(`Tem certeza que deseja EXCLUIR a instância "${name}"? Isso desconectará o WhatsApp.`)) return;
+
+            updateStatus(`Excluindo instância ${name}...`, 'red');
+
+            try {
+                await axios.delete(`${getBaseUrl()}/instance/delete/${name}`, { headers: getHeaders() });
+                
+                updateStatus(`Instância ${name} excluída com sucesso!`, 'green');
+                alert('Instância excluída!');
+                
+                // Reset UI and restart auto-connect
+                activeInstance = '';
+                document.getElementById('instanceName').value = '';
+                document.getElementById('qrCodeContainer').classList.add('hidden');
+                document.getElementById('deleteInstanceBtn').classList.add('hidden');
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+
+            } catch (err) {
+                console.error(err);
+                updateStatus('Erro ao excluir instância.', 'red');
+                alert('Erro ao excluir: ' + (err.response?.data?.message || err.message));
             }
         }
 
