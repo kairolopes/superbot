@@ -30,7 +30,7 @@
     <div class="bg-whatsapp-panel p-2 flex justify-between items-center border-b border-gray-700 text-sm">
         <div class="flex items-center gap-2">
             <span class="font-bold text-whatsapp-green"><i class="fab fa-whatsapp"></i> Evolution Clone</span>
-            <input type="text" id="apiKey" placeholder="Global API Key (do .env)" class="bg-whatsapp-input rounded px-2 py-1 text-xs w-64 border border-gray-600">
+            <input type="text" id="apiKey" value="evolution-api-secret-key-123456" placeholder="Global API Key (do .env)" class="bg-whatsapp-input rounded px-2 py-1 text-xs w-64 border border-gray-600">
             <input type="text" id="baseUrl" value="" class="bg-whatsapp-input rounded px-2 py-1 text-xs w-48 border border-gray-600">
         </div>
         <div id="connectionStatus" class="text-red-500 font-bold text-xs px-2">Desconectado</div>
@@ -186,7 +186,7 @@
 
         // --- API Helpers ---
         const getHeaders = () => ({
-            'apikey': document.getElementById('apiKey').value || 'B6D711FCDE4D4FD5936544120E713976' // Default API Key if not set
+            'apikey': document.getElementById('apiKey').value || 'evolution-api-secret-key-123456'
         });
         
         const getBaseUrl = () => document.getElementById('baseUrl').value.replace(/\/$/, '');
