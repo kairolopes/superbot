@@ -167,7 +167,17 @@
                     document.getElementById('apiKey').focus();
                     document.getElementById('apiKey').classList.add('border-red-500');
                 } else {
-                    updateStatus('Erro na conexão automática. Tente manual.', 'red');
+                    const errorMsg = err.response?.data?.message || err.message;
+                    const errorStatus = err.response?.status || 'Unknown';
+                    console.error('Detailed Error:', err.response?.data);
+                    
+                    if (errorStatus === 403 && (JSON.stringify(errorMsg).includes('already in use') || JSON.stringify(errorMsg).includes('already exist'))) {
+                        updateStatus('Instância "Principal" já existe. Tentando conectar...', 'blue');
+                        await connectInstance('Principal');
+                        return;
+                    }
+
+                    updateStatus(`Erro (${errorStatus}): ${Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg}`, 'red');
                     document.getElementById('manualConfig').classList.remove('hidden');
                 }
             }
