@@ -135,10 +135,18 @@
         let activeChat = '';
         
         // Auto-detect URL
-        document.getElementById('baseUrl').value = window.location.origin;
+        // document.getElementById('baseUrl').value = window.location.origin;
         
         // --- Initialization ---
         window.onload = async () => {
+            // Force Render URL for localhost if empty or default
+            const currentUrl = document.getElementById('baseUrl').value;
+            if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && 
+                (!currentUrl || currentUrl.includes('localhost') || currentUrl.includes('127.0.0.1'))) {
+                 document.getElementById('baseUrl').value = 'https://superbot-1.onrender.com';
+                 console.log('Forced Render URL for localhost');
+            }
+
             await autoConnect();
         };
 
