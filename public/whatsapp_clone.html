@@ -272,18 +272,22 @@
             updateStatus(`Verificando status de ${name}...`, 'blue');
 
             try {
+                // Initialize WebSocket BEFORE connecting to ensure we catch early events
+                initWebSocket(name);
+                
                 const res = await axios.get(`${getBaseUrl()}/instance/connect/${name}`, { headers: getHeaders() });
                 
+                // Check if already connected (state: open)
+                if (res.data.instance && res.data.instance.state === 'open') {
+                    updateStatus('Instância Conectada!', 'green');
+                    document.getElementById('qrCodeContainer').classList.add('hidden');
+                    return;
+                }
+
                 if (res.data.base64 || (res.data.qrcode && res.data.qrcode.base64)) {
                     updateStatus('Aguardando leitura do QR Code...', 'yellow');
                     showQrCode(res.data.base64 || res.data.qrcode.base64);
-                } else if (res.data.instance && res.data.instance.state === 'open') {
-                    updateStatus('Instância Conectada!', 'green');
-                    document.getElementById('qrCodeContainer').classList.add('hidden');
-                    alert('Instância já está conectada!');
-                }
-                
-                initWebSocket(name);
+                } 
 
             } catch (err) {
                 console.error(err);
@@ -377,10 +381,18 @@
                          showQrCode(data.data.qrcode.base64);
                     }
                 }
+                // Check connection status updates
                 if (data.event === 'connection.update') {
-                    if (data.data.state === 'open') {
+                    console.log('Connection Update:', data.data);
+                    const state = data.data.state || data.data.status;
+                    if (state === 'open' || state === 'connected') {
+                        updateStatus('Instância Conectada!', 'green');
                         document.getElementById('qrCodeContainer').classList.add('hidden');
-                        alert('WhatsApp Conectado com Sucesso!');
+                        
+                        // Force a reload of chat list logic or just alert
+                        if (!document.getElementById('chatList').innerHTML.includes('online')) {
+                             updateStatus('Pronto para uso.', 'green');
+                        }
                     }
                 }
             });
