@@ -191,8 +191,23 @@
             if (socket) socket.disconnect();
             
             const url = getBaseUrl();
+            const headers = getHeaders();
+            
             socket = io(url, {
-                transports: ['websocket', 'polling']
+                transports: ['websocket', 'polling'],
+                query: {
+                    apikey: headers.apikey
+                },
+                auth: {
+                    apikey: headers.apikey
+                }
+            });
+
+            socket.on('connect_error', (err) => {
+                console.error('Connection Error:', err);
+                document.getElementById('connectionStatus').innerText = 'Erro Conexão (WS)';
+                document.getElementById('connectionStatus').classList.remove('text-green-500');
+                document.getElementById('connectionStatus').classList.add('text-red-500');
             });
 
             socket.on('connect', () => {
