@@ -103,7 +103,7 @@
       <li>Com <code>byEvents: true</code>, cada evento é entregue em uma sub‑URL específica (ex.: <code>/webhook/kairo2/messages-upsert</code>)</li>
       <li>Com <code>base64: true</code>, mídias recebidas podem incluir <code>data.message.base64</code></li>
     </ul>
-    <p><strong>Importante:</strong> “SEU_SERVER” é a URL da Evolution API. Sua API base é <code>https://evolution-api-1p4o.onrender.com/</code>. O destino de webhook (sua aplicação cliente) é <code>https://lopeswhatsapp.onrender.com/webhook/kairo2</code>.</p>
+    <p><strong>Importante:</strong> “SEU_SERVER” é a URL da Evolution API. Sua API base é <code>https://evolution-api-1p4o.onrender.com/</code>. O destino de webhook (sua aplicação cliente) deve ser a URL do seu sistema que receberá os eventos.</p>
 
     <pre><code>curl -X POST "https://evolution-api-1p4o.onrender.com/webhook/set/kairo2" \
   -H "Content-Type: application/json" \
@@ -111,7 +111,7 @@
   -d '{
     "webhook": {
       "enabled": true,
-      "url": "https://lopeswhatsapp.onrender.com/webhook/kairo2",
+      "url": "https://webhook.site/seu-token-aqui",
       "byEvents": true,
       "base64": true
     }

@@ -788,6 +788,38 @@
         function handleEnter(e) {
             if (e.key === 'Enter') sendMessage();
         }
+
+        // Initialization on Load
+        window.addEventListener('load', async () => {
+            const instances = await fetchInstances();
+            if (instances && instances.length > 0) {
+                // Prefer 'open' instances
+                const connectedInstance = instances.find(i => i.connectionStatus === 'open');
+                const defaultInstance = connectedInstance || instances[0];
+                
+                document.getElementById('instanceName').value = defaultInstance.name;
+                
+                if (defaultInstance.connectionStatus === 'open') {
+                    activeInstance = defaultInstance.name;
+                    updateStatus('Instância Conectada (Recuperada)', 'green');
+                    document.getElementById('qrCodeContainer').classList.add('hidden');
+                    document.getElementById('testMessageBtn').classList.remove('hidden');
+                    document.getElementById('connectionStatus').innerText = 'Conectado';
+                    document.getElementById('connectionStatus').classList.remove('text-red-500');
+                    document.getElementById('connectionStatus').classList.add('text-green-500');
+                    
+                    // Initialize WebSocket
+                    initWebSocket(activeInstance);
+                    fetchChats();
+                } else {
+                    // If exists but not open, try to connect/show QR
+                    connectInstance(defaultInstance.name);
+                }
+            } else {
+                updateStatus('Nenhuma instância encontrada. Crie uma nova.', 'yellow');
+                document.getElementById('manualConfig').classList.remove('hidden');
+            }
+        });
     </script>
 </body>
 </html>
