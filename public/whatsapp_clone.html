@@ -244,6 +244,33 @@
             document.getElementById('manualConfig').classList.toggle('hidden');
         }
 
+        async function forceConnect() {
+            const name = 'Principal';
+            activeInstance = name;
+            updateStatus('Forçando conexão com "Principal"...', 'blue');
+            
+            // Fill inputs
+            document.getElementById('instanceName').value = name;
+            document.getElementById('deleteInstanceBtn').classList.remove('hidden');
+            
+            // Try to connect directly
+            try {
+                await connectInstance(name);
+            } catch (err) {
+                console.error('Force connect failed:', err);
+                
+                // If it fails with 404 (instance not found), we should create it.
+                if (err.response && (err.response.status === 404 || (err.response.data && JSON.stringify(err.response.data).includes('not exist')))) {
+                     updateStatus('Instância não encontrada. Criando...', 'blue');
+                     await createInstance(name);
+                } else {
+                     const errorMsg = err.response?.data?.message || err.message;
+                     updateStatus(`Falha ao forçar conexão: ${errorMsg}`, 'red');
+                     alert(`Erro ao forçar conexão:\n${errorMsg}\n\nVerifique se o servidor está online.`);
+                }
+            }
+        }
+
         // --- API Helpers ---
         const getHeaders = () => ({
             'apikey': document.getElementById('apiKey').value || 'evolution-api-secret-key-123456'
@@ -265,10 +292,15 @@
         // --- Instance Management ---
         async function fetchInstances() {
             try {
-                const res = await axios.get(`${getBaseUrl()}/instance/fetchInstances`, { headers: getHeaders() });
+                const baseUrl = getBaseUrl();
+                console.log('Fetching instances from:', baseUrl);
+                const res = await axios.get(`${baseUrl}/instance/fetchInstances`, { headers: getHeaders() });
                 return res.data;
             } catch (err) {
                 console.error('Error fetching instances:', err);
+                const baseUrl = getBaseUrl();
+                console.log('Failed URL:', `${baseUrl}/instance/fetchInstances`);
+                
                 if (err.response && err.response.status === 401) {
                     throw err; // Propagate auth error
                 }
