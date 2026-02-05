@@ -31,7 +31,7 @@
         <div class="flex items-center gap-2">
             <span class="font-bold text-whatsapp-green"><i class="fab fa-whatsapp"></i> Evolution Clone</span>
             <input type="text" id="apiKey" value="evolution-api-secret-key-123456" placeholder="Global API Key (do .env)" class="bg-whatsapp-input rounded px-2 py-1 text-xs w-64 border border-gray-600">
-            <input type="text" id="baseUrl" value="https://superbot-1.onrender.com" placeholder="Base URL (vazio = atual)" class="bg-whatsapp-input rounded px-2 py-1 text-xs w-64 border border-gray-600">
+            <input type="text" id="baseUrl" value="" placeholder="Base URL (vazio = atual)" class="bg-whatsapp-input rounded px-2 py-1 text-xs w-64 border border-gray-600">
         </div>
         <div id="connectionStatus" class="text-red-500 font-bold text-xs px-2">Desconectado</div>
     </div>
@@ -140,12 +140,13 @@
         
         // --- Initialization ---
         window.onload = async () => {
-            // Force Render URL for localhost if empty or default
+            // Force Proxy URL for localhost if empty
             const currentUrl = document.getElementById('baseUrl').value;
             if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && 
-                (!currentUrl || currentUrl.includes('localhost') || currentUrl.includes('127.0.0.1'))) {
-                 document.getElementById('baseUrl').value = 'https://superbot-1.onrender.com';
-                 console.log('Forced Render URL for localhost');
+                (!currentUrl || currentUrl.includes('onrender.com'))) {
+                 // Use the proxy we just set up!
+                 document.getElementById('baseUrl').value = 'http://localhost:8081';
+                 console.log('Forced Local Proxy URL for localhost');
             }
 
             await autoConnect();
