@@ -31,7 +31,9 @@ async function main() {
     }
     
     const currentInstanceName = targetInstance.name;
+    const ownerNumber = targetInstance.ownerJid ? targetInstance.ownerJid.split('@')[0] : "5511999999999";
     console.log(`Using Instance: ${currentInstanceName} (Status: ${targetInstance.connectionStatus})`);
+    console.log(`Target Number: ${ownerNumber}`);
 
     // 2. Connect WebSocket
     const namespaceUrl = `${BASE_URL}/${currentInstanceName}`;
@@ -40,59 +42,87 @@ async function main() {
     const socket = io(namespaceUrl, {
       transports: ['websocket', 'polling'],
       forceNew: true,
-       // Render might require specific path or options, but usually standard io works
-       // If path is custom, we need to know. Default is /socket.io
+      query: {
+        apikey: API_KEY
+      }
     });
+
+    let sendEventReceived = false;
+    let upsertEventReceived = false;
+
+    // Timeout to fail test if events don't arrive
+    const timeout = setTimeout(() => {
+        console.error("❌ TIMEOUT: Events did not arrive within 30 seconds.");
+        console.log(`Status - Send: ${sendEventReceived}, Upsert: ${upsertEventReceived}`);
+        process.exit(1);
+    }, 30000);
 
     socket.on("connect", () => {
       console.log("✅ WebSocket Connected!");
       
       // 3. Send Message
-      sendMessage(currentInstanceName, "5511999999999"); 
+      sendMessage(currentInstanceName, ownerNumber); 
     });
 
-    socket.on("messages.upsert", (data) => {
-      console.log("✅ RECEIVED EVENT: messages.upsert");
-      process.exit(0);
-    });
-    
-    socket.on("MESSAGES_UPSERT", (data) => {
-        console.log("✅ RECEIVED EVENT: MESSAGES_UPSERT");
-        process.exit(0);
+    socket.on("disconnect", (reason) => {
+      console.log("❌ WebSocket Disconnected:", reason);
     });
 
     socket.on("connect_error", (err) => {
       console.error(`❌ WebSocket Connection Error: ${err.message}`);
-      // console.error(JSON.stringify(err, null, 2));
-      if (err.message === "websocket error") {
-         console.log("Check server logs for rejection reason.");
-      }
     });
 
-  } catch (error) {
-    console.error("Critical Error:", error.message);
+    // Listen for events
+    socket.onAny((eventName, ...args) => {
+        console.log(`🔔 Event received: ${eventName}`);
+        if (eventName === 'messages.upsert' || eventName === 'MESSAGES_UPSERT') {
+             upsertEventReceived = true;
+             checkCompletion();
+        }
+        if (eventName === 'send.message' || eventName === 'SEND_MESSAGE') {
+             sendEventReceived = true;
+             checkCompletion();
+        }
+    });
+
+    function checkCompletion() {
+        if (sendEventReceived && upsertEventReceived) {
+            console.log("🚀 TEST COMPLETED SUCCESSFULLY: Sent and Received events confirmed.");
+            clearTimeout(timeout);
+            process.exit(0);
+        }
+    }
+
+  } catch (error: any) {
+    console.error("❌ Error in test:", error.message);
     if (error.response) {
-        console.error("Response Status:", error.response.status);
-        console.error("Response Data:", JSON.stringify(error.response.data, null, 2));
-    } else if (error.request) {
-        console.error("No response received from server.");
+      console.error("Response data:", error.response.data);
     }
   }
 }
 
 async function sendMessage(instanceName: string, number: string) {
-    console.log(`Sending test message to ${number}...`);
-    try {
-        const res = await axios.post(`${BASE_URL}/message/sendText/${instanceName}`, {
-            number: number,
-            text: "Teste de fluxo automático " + new Date().toISOString()
-        }, {
-            headers: { apikey: API_KEY }
-        });
-        console.log("Message request sent:", res.status);
-    } catch (err) {
-        console.error("Failed to send message:", err.message);
+  try {
+    const url = `${BASE_URL}/message/sendText/${instanceName}`;
+    const body = {
+      number: number,
+      text: `Teste de fluxo automático ${new Date().toISOString()}`,
+      delay: 1200,
+      linkPreview: false
+    };
+    
+    console.log(`Sending message to ${url}...`);
+    const res = await axios.post(url, body, {
+      headers: { apikey: API_KEY }
+    });
+    
+    console.log("Message request sent:", res.status);
+  } catch (error: any) {
+    console.error("❌ Error sending message:", error.message);
+    if (error.response) {
+      console.error("Response data:", JSON.stringify(error.response.data, null, 2));
     }
+  }
 }
 
 main();
