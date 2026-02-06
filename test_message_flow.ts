@@ -74,14 +74,21 @@ async function main() {
 
     // Listen for events
     socket.onAny((eventName, ...args) => {
-        console.log(`🔔 Event received: ${eventName}`);
+        // ANSI Colors
+        const green = "\x1b[32m";
+        const blue = "\x1b[34m";
+        const reset = "\x1b[0m";
+
         if (eventName === 'messages.upsert' || eventName === 'MESSAGES_UPSERT') {
+             console.log(`${blue}📩 RECEBIDA (MESSAGES_UPSERT):${reset}`, JSON.stringify(args, null, 2));
              upsertEventReceived = true;
              checkCompletion();
-        }
-        if (eventName === 'send.message' || eventName === 'SEND_MESSAGE') {
+        } else if (eventName === 'send.message' || eventName === 'SEND_MESSAGE') {
+             console.log(`${green}📤 ENVIADA (SEND_MESSAGE):${reset}`, JSON.stringify(args, null, 2));
              sendEventReceived = true;
              checkCompletion();
+        } else {
+             console.log(`🔔 Event received: ${eventName}`);
         }
     });
 
